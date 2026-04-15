@@ -20,6 +20,9 @@ WORKDIR /var/www/html
 
 COPY . .
 
+RUN mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs && \
+    chmod -R 775 bootstrap storage
+
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
 RUN cp .env.example .env && \
