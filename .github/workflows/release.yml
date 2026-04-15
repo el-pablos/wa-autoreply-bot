@@ -1,0 +1,80 @@
+name: Release — Auto Tag & Publish
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Buat Release Otomatis
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ambil tag terakhir
+        id: get_tag
+        run: |
+          LATEST=$(git tag --sort=-v:refname | head -n1)
+          if [ -z "$LATEST" ]; then
+            LATEST="v0.0.0"
+          fi
+          echo "latest=${LATEST}" >> $GITHUB_OUTPUT
+          echo "Tag terakhir: $LATEST"
+
+      - name: Hitung versi baru (semver patch)
+        id: new_version
+        run: |
+          LATEST="${{ steps.get_tag.outputs.latest }}"
+          VERSION=${LATEST#v}
+          IFS='.' read -r -a parts <<< "$VERSION"
+          MAJOR=${parts[0]:-0}
+          MINOR=${parts[1]:-1}
+          PATCH=${parts[2]:-0}
+          NEW_PATCH=$((PATCH + 1))
+          NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+          echo "new_tag=${NEW_TAG}" >> $GITHUB_OUTPUT
+          echo "Versi baru: $NEW_TAG"
+
+      - name: Generate changelog dari commit terbaru
+        id: changelog
+        run: |
+          LATEST="${{ steps.get_tag.outputs.latest }}"
+          if git rev-parse "$LATEST" >/dev/null 2>&1; then
+            LOG=$(git log ${LATEST}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+          echo "log<<EOF" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Buat tag baru
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.new_version.outputs.new_tag }}
+          git push origin ${{ steps.new_version.outputs.new_tag }}
+
+      - name: Buat GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name:     ${{ steps.new_version.outputs.new_tag }}
+          release_name: "🤖 Release ${{ steps.new_version.outputs.new_tag }}"
+          body: |
+            ## 🚀 Perubahan di versi ini
+
+            ${{ steps.changelog.outputs.log }}
+
+            ---
+            **Full Changelog**: https://github.com/el-pablos/wa-autoreply-bot/commits/main
+          draft:      false
+          prerelease: false

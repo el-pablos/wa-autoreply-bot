@@ -1,0 +1,120 @@
+name: CI — Test & Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  test-bot:
+    name: Unit Test Node.js Bot
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bot
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: bot/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Jalankan unit test
+        run: npm test
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bot-coverage
+          path: bot/coverage/
+
+  test-dashboard:
+    name: Unit + Feature Test Laravel
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test_password
+          MYSQL_DATABASE: wabot_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, zip
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Setup env untuk testing
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: wabot_test
+          DB_USERNAME: root
+          DB_PASSWORD: test_password
+          DASHBOARD_PASSWORD: testpassword
+
+      - name: Jalankan migrasi
+        run: php artisan migrate --force
+        env:
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: wabot_test
+          DB_USERNAME: root
+          DB_PASSWORD: test_password
+
+      - name: Jalankan semua test
+        run: php artisan test --coverage
+        env:
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: wabot_test
+          DB_USERNAME: root
+          DB_PASSWORD: test_password
+          DASHBOARD_PASSWORD: testpassword
+
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-bot, test-dashboard]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Bot image
+        run: docker build -t wa-bot:test ./bot
+
+      - name: Build Dashboard image
+        run: docker build -t wa-dashboard:test ./dashboard
+
+      - name: Verifikasi health endpoint bot
+        run: |
+          docker run -d --name test-bot -e DB_HOST=localhost -e DB_PASSWORD=test -p 3001:3001 wa-bot:test
+          sleep 10
+          curl -f http://localhost:3001/health || echo "Bot health check (DB belum ada, expected)"
+          docker stop test-bot

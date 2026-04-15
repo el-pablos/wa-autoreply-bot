@@ -1,0 +1,90 @@
+version: '3.9'
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: wa-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: FILL_YOUR_DB_PASSWORD_HERE
+      MYSQL_DATABASE: wabot
+      MYSQL_CHARSET: utf8mb4
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pFILL_YOUR_DB_PASSWORD_HERE"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: wa-bot
+    restart: unless-stopped
+    volumes:
+      - bot_auth:/app/auth_info
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: wabot
+      DB_USER: root
+      DB_PASSWORD: FILL_YOUR_DB_PASSWORD_HERE
+      BOT_PORT: 3001
+      NODE_ENV: production
+      LOG_LEVEL: info
+    ports:
+      - "3001:3001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: wa-dashboard
+    restart: unless-stopped
+    environment:
+      APP_NAME: "WA Bot Monitor"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: https://monitoring-wa.tams.codes
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: wabot
+      DB_USERNAME: root
+      DB_PASSWORD: FILL_YOUR_DB_PASSWORD_HERE
+      SESSION_DRIVER: file
+      CACHE_DRIVER: file
+      DASHBOARD_PASSWORD: FILL_YOUR_DASHBOARD_PASSWORD_HERE
+    ports:
+      - "8002:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  mysql_data:
+    driver: local
+  bot_auth:
+    driver: local
