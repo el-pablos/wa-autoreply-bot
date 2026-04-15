@@ -161,8 +161,14 @@ export async function handleIncomingMessage(sock, msg) {
     return;
   }
 
-  // Cek allow-list
-  const allowed = phoneNumber ? await isAllowedNumber(phoneNumber) : false;
+  // Cek allow-list:
+  // 1) gunakan MSISDN jika tersedia
+  // 2) fallback ke identifier non-msisdn (tanpa prefix) supaya bisa di-allowlist manual
+  const fallbackAllowIdentifier = senderRef.startsWith('non_msisdn:')
+    ? senderRef.replace('non_msisdn:', '')
+    : '';
+  const allowLookupValue = phoneNumber || fallbackAllowIdentifier;
+  const allowed = allowLookupValue ? await isAllowedNumber(allowLookupValue) : false;
 
   let replied    = false;
   let replyText  = null;
@@ -182,7 +188,7 @@ export async function handleIncomingMessage(sock, msg) {
       logger.error({ err, to: phoneNumber }, 'Gagal kirim auto-reply');
     }
   } else {
-    logger.debug({ phoneNumber, allowed, autoReplyEnabled }, 'Tidak memenuhi syarat untuk reply');
+    logger.debug({ phoneNumber, allowLookupValue, allowed, autoReplyEnabled }, 'Tidak memenuhi syarat untuk reply');
   }
 
   // Log ke database apapun hasilnya

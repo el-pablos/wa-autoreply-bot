@@ -16,7 +16,7 @@
       @error('phone_number')
         <small style="color:#f85149;font-size:.8rem">{{ $message }}</small>
       @enderror
-      <small style="color:#8b949e;font-size:.8rem">Format: 628xxx (tanpa + atau spasi)</small>
+      <small style="color:#8b949e;font-size:.8rem">Format: 628xxx (tanpa +/spasi) atau sender ID numeric (8-20 digit) dari halaman Logs.</small>
     </div>
 
     <div class="form-group">

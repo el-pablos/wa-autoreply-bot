@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         if (!Schema::hasTable('message_logs') || !Schema::hasColumn('message_logs', 'from_number')) {
             return;
         }
@@ -27,6 +31,10 @@ return new class extends Migration {
 
     public function down(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         if (!Schema::hasTable('message_logs') || !Schema::hasColumn('message_logs', 'from_number')) {
             return;
         }

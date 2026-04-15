@@ -40,13 +40,13 @@ class AllowListController extends Controller
             'phone_number' => [
                 'required',
                 'string',
-                'regex:/^628[0-9]{7,13}$/',
+                'regex:/^(628[0-9]{7,13}|[0-9]{8,20})$/',
                 'unique:allowed_numbers,phone_number',
             ],
             'label'     => 'nullable|string|max:100',
             'is_active' => 'boolean',
         ], [
-            'phone_number.regex' => 'Format nomor harus 628xxx (contoh: 6281234567890)',
+            'phone_number.regex' => 'Format harus 628xxx atau numeric sender ID (8-20 digit).',
         ]);
 
         AllowedNumber::create($data);
@@ -66,13 +66,13 @@ class AllowListController extends Controller
             'phone_number' => [
                 'required',
                 'string',
-                'regex:/^628[0-9]{7,13}$/',
+                'regex:/^(628[0-9]{7,13}|[0-9]{8,20})$/',
                 "unique:allowed_numbers,phone_number,{$allowlist->id}",
             ],
             'label'     => 'nullable|string|max:100',
             'is_active' => 'boolean',
         ], [
-            'phone_number.regex' => 'Format nomor harus 628xxx',
+            'phone_number.regex' => 'Format harus 628xxx atau numeric sender ID (8-20 digit).',
         ]);
 
         $allowlist->update($data);

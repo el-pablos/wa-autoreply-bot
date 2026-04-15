@@ -36,7 +36,7 @@ class AllowListTest extends TestCase
     public function test_invalid_phone_format_rejected(): void
     {
         $response = $this->actingAsAuth()->post('/allowlist', [
-            'phone_number' => '08123456789', // format salah
+            'phone_number' => 'abc123', // format salah
         ]);
         $response->assertSessionHasErrors('phone_number');
     }
