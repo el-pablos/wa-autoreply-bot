@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (Schema::hasTable('allowed_numbers')) {
+            return;
+        }
+
         Schema::create('allowed_numbers', function (Blueprint $table) {
             $table->id();
             $table->string('phone_number', 20)->unique()->comment('Format: 628xxx');

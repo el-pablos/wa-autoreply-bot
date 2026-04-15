@@ -23,10 +23,7 @@ COPY . .
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
 RUN cp .env.example .env && \
-    php artisan key:generate && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache
+    php artisan key:generate
 
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
