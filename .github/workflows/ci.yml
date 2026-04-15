@@ -39,6 +39,8 @@ jobs:
     defaults:
       run:
         working-directory: dashboard
+    env:
+      COMPOSER_ALLOW_SUPERUSER: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +52,10 @@ jobs:
           extensions: pdo_sqlite, sqlite3, mbstring, zip
 
       - name: Install Composer dependencies
-        run: composer install --no-interaction --prefer-dist
+        run: |
+          mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
+          chmod -R 775 bootstrap storage
+          composer install --no-interaction --prefer-dist
 
       - name: Setup env untuk testing
         run: |
