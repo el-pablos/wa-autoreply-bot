@@ -60,7 +60,9 @@ jobs:
       - name: Setup env untuk testing
         run: |
           cp .env.example .env
-          php artisan key:generate
+          sed -i 's/^APP_ENV=.*/APP_ENV=testing/' .env
+          sed -i 's/^APP_DEBUG=.*/APP_DEBUG=true/' .env
+          php artisan key:generate --force
 
       - name: Jalankan semua test
         run: php artisan test --coverage
