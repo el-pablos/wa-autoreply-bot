@@ -1,0 +1,58 @@
+# Environment
+.env
+*.env
+.env.*
+!.env.example
+
+# Auth Baileys (jangan pernah commit session WA)
+bot/auth_info/
+bot/auth_info_backup/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Laravel
+dashboard/vendor/
+dashboard/node_modules/
+dashboard/public/hot
+dashboard/public/storage
+dashboard/storage/*.key
+dashboard/storage/app/
+dashboard/storage/framework/
+dashboard/storage/logs/
+dashboard/bootstrap/cache/
+
+# Build
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+.docker/
+
+# Logs
+*.log
+logs/
+
+# Secrets & Tokens — WAJIB tidak pernah masuk repo
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+credentials/
+
+# Local credential notes
+kredensial.txt
