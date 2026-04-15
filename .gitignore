@@ -45,6 +45,8 @@ Thumbs.db
 # Logs
 *.log
 logs/
+coverage/
+bot/coverage/
 
 # Secrets & Tokens — WAJIB tidak pernah masuk repo
 *.pem
@@ -53,6 +55,9 @@ logs/
 *.crt
 secrets/
 credentials/
+
+# Local credential notes
+kredensial.txt
 
 # Local credential notes
 kredensial.txt
