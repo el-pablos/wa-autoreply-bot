@@ -10,7 +10,7 @@ jobs:
 
   test-bot:
     name: Unit Test Node.js Bot
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, ubuntu-latest]
     defaults:
       run:
         working-directory: bot
@@ -40,7 +40,7 @@ jobs:
 
   test-dashboard:
     name: Unit + Feature Test Laravel
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, ubuntu-latest]
     defaults:
       run:
         working-directory: dashboard
@@ -99,7 +99,7 @@ jobs:
 
   build-docker:
     name: Build Docker Images
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, ubuntu-latest]
     needs: [test-bot, test-dashboard]
     if: github.ref == 'refs/heads/main'
 
