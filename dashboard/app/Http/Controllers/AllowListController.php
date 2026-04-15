@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 
 use App\Models\AllowedNumber;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Validator;
 
 class AllowListController extends Controller
 {
@@ -36,18 +38,7 @@ class AllowListController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'phone_number' => [
-                'required',
-                'string',
-                'regex:/^(628[0-9]{7,13}|[0-9]{8,20})$/',
-                'unique:allowed_numbers,phone_number',
-            ],
-            'label'     => 'nullable|string|max:100',
-            'is_active' => 'boolean',
-        ], [
-            'phone_number.regex' => 'Format harus 628xxx atau numeric sender ID (8-20 digit).',
-        ]);
+        $data = $this->validateAndNormalize($request);
 
         AllowedNumber::create($data);
 
@@ -62,18 +53,7 @@ class AllowListController extends Controller
 
     public function update(Request $request, AllowedNumber $allowlist)
     {
-        $data = $request->validate([
-            'phone_number' => [
-                'required',
-                'string',
-                'regex:/^(628[0-9]{7,13}|[0-9]{8,20})$/',
-                "unique:allowed_numbers,phone_number,{$allowlist->id}",
-            ],
-            'label'     => 'nullable|string|max:100',
-            'is_active' => 'boolean',
-        ], [
-            'phone_number.regex' => 'Format harus 628xxx atau numeric sender ID (8-20 digit).',
-        ]);
+        $data = $this->validateAndNormalize($request, $allowlist);
 
         $allowlist->update($data);
 
@@ -97,5 +77,44 @@ class AllowListController extends Controller
 
         return redirect()->route('allowlist.index')
             ->with('success', "Nomor {$allowlist->phone_number} berhasil {$status}!");
+    }
+
+    private function validateAndNormalize(Request $request, ?AllowedNumber $allowlist = null): array
+    {
+        $data = $request->validate([
+            'phone_number' => ['required', 'string', 'regex:/^(\+62|62|08)[0-9]{7,13}$/'],
+            'label' => 'nullable|string|max:100',
+            'is_active' => 'boolean',
+        ], [
+            'phone_number.regex' => 'Nomor WA harus diawali +62, 62, atau 08 dan hanya berisi angka.',
+        ]);
+
+        $data['phone_number'] = $this->normalizePhoneNumber($data['phone_number']);
+
+        Validator::make($data, [
+            'phone_number' => [
+                'required',
+                'regex:/^628[0-9]{7,13}$/',
+                Rule::unique('allowed_numbers', 'phone_number')->ignore($allowlist?->id),
+            ],
+        ], [
+            'phone_number.regex' => 'Nomor WA tidak valid. Gunakan format +62, 62, atau 08 dengan nomor seluler aktif.',
+            'phone_number.unique' => 'Nomor WA sudah ada di allowlist.',
+        ])->validate();
+
+        return $data;
+    }
+
+    private function normalizePhoneNumber(string $phoneNumber): string
+    {
+        if (str_starts_with($phoneNumber, '+62')) {
+            return '62' . substr($phoneNumber, 3);
+        }
+
+        if (str_starts_with($phoneNumber, '08')) {
+            return '62' . substr($phoneNumber, 1);
+        }
+
+        return $phoneNumber;
     }
 }

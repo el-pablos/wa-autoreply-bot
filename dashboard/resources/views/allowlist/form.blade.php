@@ -12,11 +12,11 @@
       <label>Nomor WhatsApp <span style="color:#f85149">*</span></label>
       <input type="text" name="phone_number" value="{{ old('phone_number', $number?->phone_number) }}"
              class="form-control {{ $errors->has('phone_number') ? 'is-invalid' : '' }}"
-             placeholder="628123456789">
+             placeholder="+628123456789 / 628123456789 / 08123456789">
       @error('phone_number')
         <small style="color:#f85149;font-size:.8rem">{{ $message }}</small>
       @enderror
-      <small style="color:#8b949e;font-size:.8rem">Format: 628xxx (tanpa +/spasi) atau sender ID numeric (8-20 digit) dari halaman Logs.</small>
+      <small style="color:#8b949e;font-size:.8rem">Cukup input nomor WhatsApp asli: +62..., 62..., atau 08... (hanya angka, tanpa spasi/simbol lain). Sistem akan otomatis menyimpan ke format 62xxxx.</small>
     </div>
 
     <div class="form-group">

@@ -33,11 +33,44 @@ class AllowListTest extends TestCase
         $this->assertDatabaseHas('allowed_numbers', ['phone_number' => '628123456789']);
     }
 
+    public function test_can_store_number_with_plus_62_and_normalize_to_62(): void
+    {
+        $response = $this->actingAsAuth()->post('/allowlist', [
+            'phone_number' => '+628123456789',
+            'label'        => 'Plus62',
+            'is_active'    => 1,
+        ]);
+
+        $response->assertRedirect('/allowlist');
+        $this->assertDatabaseHas('allowed_numbers', ['phone_number' => '628123456789']);
+    }
+
+    public function test_can_store_number_with_08_and_normalize_to_62(): void
+    {
+        $response = $this->actingAsAuth()->post('/allowlist', [
+            'phone_number' => '08123456789',
+            'label'        => 'Zero8',
+            'is_active'    => 1,
+        ]);
+
+        $response->assertRedirect('/allowlist');
+        $this->assertDatabaseHas('allowed_numbers', ['phone_number' => '628123456789']);
+    }
+
     public function test_invalid_phone_format_rejected(): void
     {
         $response = $this->actingAsAuth()->post('/allowlist', [
             'phone_number' => 'abc123', // format salah
         ]);
+        $response->assertSessionHasErrors('phone_number');
+    }
+
+    public function test_noisy_phone_format_rejected(): void
+    {
+        $response = $this->actingAsAuth()->post('/allowlist', [
+            'phone_number' => '+62 812-3456-789',
+        ]);
+
         $response->assertSessionHasErrors('phone_number');
     }
 
@@ -48,6 +81,17 @@ class AllowListTest extends TestCase
         $response = $this->actingAsAuth()->post('/allowlist', [
             'phone_number' => '628111111111',
         ]);
+        $response->assertSessionHasErrors('phone_number');
+    }
+
+    public function test_duplicate_number_rejected_after_normalization(): void
+    {
+        AllowedNumber::create(['phone_number' => '628111111111', 'is_active' => true]);
+
+        $response = $this->actingAsAuth()->post('/allowlist', [
+            'phone_number' => '08111111111',
+        ]);
+
         $response->assertSessionHasErrors('phone_number');
     }
 

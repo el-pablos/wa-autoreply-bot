@@ -2,13 +2,13 @@ import { logger } from '../utils/logger.js';
 import { getSetting, isAllowedNumber, saveMessageLog } from '../db.js';
 
 export function normalizePhoneNumber(rawJid = '') {
-  const base   = String(rawJid).split('@')[0].split(':')[0];
+  const base   = String(rawJid).trim().split('@')[0].split(':')[0];
   const digits = base.replace(/\D/g, '');
 
   if (!digits) return '';
-  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
-  if (digits.startsWith('8')) return `62${digits}`;
   if (digits.startsWith('62') && /^62\d{8,13}$/.test(digits)) return digits;
+  if (digits.startsWith('0') && /^0\d{8,13}$/.test(digits)) return `62${digits.slice(1)}`;
+  if (digits.startsWith('8') && /^8\d{8,12}$/.test(digits)) return `62${digits}`;
   return '';
 }
 
@@ -23,19 +23,23 @@ function getContextParticipant(msg) {
   return payload?.messageContextInfo?.participant || '';
 }
 
-function toFallbackIdentifier(raw = '') {
+function toUnresolvedMarker(raw = '') {
   const base = String(raw).trim();
-  if (!base) return 'unknown';
+  if (!base) return 'unresolved:unknown';
 
   const identifier = base.split('@')[0] || base;
-  return identifier ? `non_msisdn:${identifier}` : 'unknown';
+  return identifier ? `unresolved:${identifier}` : 'unresolved:unknown';
 }
 
 export function resolveSenderIdentity(msg) {
   const remoteJid = msg.key?.remoteJid || '';
   const isGroup   = remoteJid.endsWith('@g.us');
 
-  const candidates = isGroup
+  const pnCandidates = [
+    { source: 'key.senderPn', value: msg.key?.senderPn },
+    { source: 'key.participantPn', value: msg.key?.participantPn },
+  ];
+  const jidCandidates = isGroup
     ? [
       { source: 'key.participant', value: msg.key?.participant },
       { source: 'message.context.participant', value: getContextParticipant(msg) },
@@ -46,6 +50,7 @@ export function resolveSenderIdentity(msg) {
       { source: 'key.participant', value: msg.key?.participant },
       { source: 'message.context.participant', value: getContextParticipant(msg) },
     ];
+  const candidates = [...pnCandidates, ...jidCandidates];
 
   let fallbackRaw    = '';
   let fallbackSource = 'unknown';
@@ -72,7 +77,7 @@ export function resolveSenderIdentity(msg) {
 
   return {
     phoneNumber:  '',
-    senderRef:    toFallbackIdentifier(fallbackRaw),
+    senderRef:    toUnresolvedMarker(fallbackRaw),
     senderSource: fallbackSource,
     senderRaw:    fallbackRaw || '',
     isFallback:   true,
@@ -161,14 +166,13 @@ export async function handleIncomingMessage(sock, msg) {
     return;
   }
 
-  // Cek allow-list:
-  // 1) gunakan MSISDN jika tersedia
-  // 2) fallback ke identifier non-msisdn (tanpa prefix) supaya bisa di-allowlist manual
-  const fallbackAllowIdentifier = senderRef.startsWith('non_msisdn:')
-    ? senderRef.replace('non_msisdn:', '')
-    : '';
-  const allowLookupValue = phoneNumber || fallbackAllowIdentifier;
-  const allowed = allowLookupValue ? await isAllowedNumber(allowLookupValue) : false;
+  if (!phoneNumber) {
+    logger.debug(
+      { unresolvedMarker: senderRef, senderSource, senderRaw, remoteJid },
+      'Sender unresolved: auto-reply dilewati'
+    );
+  }
+  const allowed = phoneNumber ? await isAllowedNumber(phoneNumber) : false;
 
   let replied    = false;
   let replyText  = null;
@@ -188,7 +192,7 @@ export async function handleIncomingMessage(sock, msg) {
       logger.error({ err, to: phoneNumber }, 'Gagal kirim auto-reply');
     }
   } else {
-    logger.debug({ phoneNumber, allowLookupValue, allowed, autoReplyEnabled }, 'Tidak memenuhi syarat untuk reply');
+    logger.debug({ phoneNumber, allowed, autoReplyEnabled }, 'Tidak memenuhi syarat untuk reply');
   }
 
   // Log ke database apapun hasilnya

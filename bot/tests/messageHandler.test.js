@@ -72,12 +72,55 @@ describe('normalizePhoneNumber', () => {
     expect(normalizePhoneNumber('08123456789@s.whatsapp.net')).toBe('628123456789');
   });
 
+  test('normalisasi nomor +62', () => {
+    expect(normalizePhoneNumber('+628123456789')).toBe('628123456789');
+  });
+
   test('identifier non-msisdn menghasilkan string kosong', () => {
     expect(normalizePhoneNumber('20233641300057@lid')).toBe('');
   });
 });
 
 describe('resolveSenderIdentity', () => {
+  test('prioritaskan key.senderPn dibanding remoteJid non-msisdn', () => {
+    const msg = {
+      key: {
+        remoteJid: '20233641300057@lid',
+        senderPn: '+628111111111',
+      },
+      message: { conversation: 'halo' },
+    };
+
+    expect(resolveSenderIdentity(msg)).toEqual(
+      expect.objectContaining({
+        phoneNumber: '628111111111',
+        senderRef: '628111111111',
+        senderSource: 'key.senderPn',
+        isFallback: false,
+      })
+    );
+  });
+
+  test('prioritaskan key.participantPn untuk pesan grup', () => {
+    const msg = {
+      key: {
+        remoteJid: '120363025@g.us',
+        participant: '182773731@lid',
+        participantPn: '081222222222',
+      },
+      message: { conversation: 'halo grup' },
+    };
+
+    expect(resolveSenderIdentity(msg)).toEqual(
+      expect.objectContaining({
+        phoneNumber: '6281222222222',
+        senderRef: '6281222222222',
+        senderSource: 'key.participantPn',
+        isFallback: false,
+      })
+    );
+  });
+
   test('ambil nomor dari JID standar', () => {
     const msg = {
       key: { remoteJid: '628123456789@s.whatsapp.net' },
@@ -109,7 +152,7 @@ describe('resolveSenderIdentity', () => {
     );
   });
 
-  test('identifier lid/non-62 fallback dan tidak dianggap msisdn', () => {
+  test('identifier lid/non-62 fallback unresolved dan tidak dianggap msisdn', () => {
     const msg = {
       key: { remoteJid: '20233641300057@lid' },
       message: { conversation: 'halo lid' },
@@ -118,7 +161,7 @@ describe('resolveSenderIdentity', () => {
     expect(resolveSenderIdentity(msg)).toEqual(
       expect.objectContaining({
         phoneNumber: '',
-        senderRef: 'non_msisdn:20233641300057',
+        senderRef: 'unresolved:20233641300057',
         senderSource: 'key.remoteJid',
         isFallback: true,
       })

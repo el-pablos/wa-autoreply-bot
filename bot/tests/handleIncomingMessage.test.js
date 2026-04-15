@@ -146,35 +146,72 @@ describe('handleIncomingMessage', () => {
     );
   });
 
-  test('kirim auto-reply untuk sender non-msisdn yang sudah di-allowlist', async () => {
+  test('kirim auto-reply untuk key.senderPn meski remoteJid non-msisdn', async () => {
     const sendMessage = jest.fn().mockResolvedValue(undefined);
     const sock = { sendMessage };
     const msg = {
-      key: { fromMe: false, remoteJid: '20233641300057@lid' },
+      key: {
+        fromMe: false,
+        remoteJid: '20233641300057@lid',
+        senderPn: '+628555555555',
+      },
       message: { conversation: 'halo dari lid' },
     };
 
     mockGetSetting
       .mockResolvedValueOnce('true')
       .mockResolvedValueOnce('false')
-      .mockResolvedValueOnce('Balasan LID')
+      .mockResolvedValueOnce('Balasan senderPn')
       .mockResolvedValueOnce('0');
     mockIsAllowedNumber.mockResolvedValueOnce(true);
 
     await handleIncomingMessage(sock, msg);
 
-    expect(mockIsAllowedNumber).toHaveBeenCalledWith('20233641300057');
-    expect(sendMessage).toHaveBeenCalledWith('20233641300057@lid', { text: 'Balasan LID' });
+    expect(mockIsAllowedNumber).toHaveBeenCalledWith('628555555555');
+    expect(sendMessage).toHaveBeenCalledWith('20233641300057@lid', { text: 'Balasan senderPn' });
     expect(mockSaveMessageLog).toHaveBeenCalledWith(
       expect.objectContaining({
-        fromNumber: 'non_msisdn:20233641300057',
+        fromNumber: '628555555555',
         isAllowed: true,
         replied: true,
       })
     );
   });
 
-  test('identifier non-msisdn disimpan sebagai fallback dan tidak cek allowlist', async () => {
+  test('kirim auto-reply untuk key.participantPn pada pesan grup', async () => {
+    const sendMessage = jest.fn().mockResolvedValue(undefined);
+    const sock = { sendMessage };
+    const msg = {
+      key: {
+        fromMe: false,
+        remoteJid: '120363025@g.us',
+        participant: '182773731@lid',
+        participantPn: '081333333333',
+      },
+      message: { conversation: 'halo grup dari lid' },
+    };
+
+    mockGetSetting
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('Balasan participantPn')
+      .mockResolvedValueOnce('0');
+    mockIsAllowedNumber.mockResolvedValueOnce(true);
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(mockIsAllowedNumber).toHaveBeenCalledWith('6281333333333');
+    expect(sendMessage).toHaveBeenCalledWith('120363025@g.us', { text: 'Balasan participantPn' });
+    expect(mockSaveMessageLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fromNumber: '6281333333333',
+        isAllowed: true,
+        replied: true,
+      })
+    );
+  });
+
+  test('identifier non-msisdn tanpa PN ditandai unresolved dan tidak cek allowlist', async () => {
     const sendMessage = jest.fn();
     const sock = { sendMessage };
     const msg = {
@@ -187,15 +224,21 @@ describe('handleIncomingMessage', () => {
       .mockResolvedValueOnce('false')
       .mockResolvedValueOnce('reply text')
       .mockResolvedValueOnce('0');
-    mockIsAllowedNumber.mockResolvedValueOnce(false);
 
     await handleIncomingMessage(sock, msg);
 
-    expect(mockIsAllowedNumber).toHaveBeenCalledWith('20233641300057');
+    expect(mockIsAllowedNumber).not.toHaveBeenCalled();
     expect(sendMessage).not.toHaveBeenCalled();
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        unresolvedMarker: 'unresolved:20233641300057',
+        senderSource: 'key.remoteJid',
+      }),
+      'Sender unresolved: auto-reply dilewati'
+    );
     expect(mockSaveMessageLog).toHaveBeenCalledWith(
       expect.objectContaining({
-        fromNumber: 'non_msisdn:20233641300057',
+        fromNumber: 'unresolved:20233641300057',
         isAllowed: false,
         replied: false,
       })
