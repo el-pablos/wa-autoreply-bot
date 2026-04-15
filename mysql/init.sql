@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS allowed_numbers (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS message_logs (
     id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    from_number   VARCHAR(20)  NOT NULL COMMENT 'Nomor pengirim',
+    from_number   VARCHAR(64)  NOT NULL COMMENT 'Nomor pengirim',
     message_text  TEXT         NULL     COMMENT 'Isi pesan yang masuk',
     message_type  VARCHAR(30)  NOT NULL DEFAULT 'text' COMMENT 'text/image/audio/video/document/sticker/location/other',
     is_allowed    TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '1=ada di allow-list',

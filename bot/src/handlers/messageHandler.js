@@ -1,6 +1,84 @@
 import { logger } from '../utils/logger.js';
 import { getSetting, isAllowedNumber, saveMessageLog } from '../db.js';
 
+export function normalizePhoneNumber(rawJid = '') {
+  const base   = String(rawJid).split('@')[0].split(':')[0];
+  const digits = base.replace(/\D/g, '');
+
+  if (!digits) return '';
+  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+  if (digits.startsWith('8')) return `62${digits}`;
+  if (digits.startsWith('62') && /^62\d{8,13}$/.test(digits)) return digits;
+  return '';
+}
+
+function getContextParticipant(msg) {
+  const payload = msg.message || {};
+
+  for (const value of Object.values(payload)) {
+    const participant = value?.contextInfo?.participant;
+    if (participant) return participant;
+  }
+
+  return payload?.messageContextInfo?.participant || '';
+}
+
+function toFallbackIdentifier(raw = '') {
+  const base = String(raw).trim();
+  if (!base) return 'unknown';
+
+  const identifier = base.split('@')[0] || base;
+  return identifier ? `non_msisdn:${identifier}` : 'unknown';
+}
+
+export function resolveSenderIdentity(msg) {
+  const remoteJid = msg.key?.remoteJid || '';
+  const isGroup   = remoteJid.endsWith('@g.us');
+
+  const candidates = isGroup
+    ? [
+      { source: 'key.participant', value: msg.key?.participant },
+      { source: 'message.context.participant', value: getContextParticipant(msg) },
+      { source: 'key.remoteJid', value: remoteJid },
+    ]
+    : [
+      { source: 'key.remoteJid', value: remoteJid },
+      { source: 'key.participant', value: msg.key?.participant },
+      { source: 'message.context.participant', value: getContextParticipant(msg) },
+    ];
+
+  let fallbackRaw    = '';
+  let fallbackSource = 'unknown';
+
+  for (const candidate of candidates) {
+    if (!candidate.value) continue;
+
+    const normalized = normalizePhoneNumber(candidate.value);
+    if (normalized) {
+      return {
+        phoneNumber:  normalized,
+        senderRef:    normalized,
+        senderSource: candidate.source,
+        senderRaw:    String(candidate.value),
+        isFallback:   false,
+      };
+    }
+
+    if (!fallbackRaw) {
+      fallbackRaw    = String(candidate.value);
+      fallbackSource = candidate.source;
+    }
+  }
+
+  return {
+    phoneNumber:  '',
+    senderRef:    toFallbackIdentifier(fallbackRaw),
+    senderSource: fallbackSource,
+    senderRaw:    fallbackRaw || '',
+    isFallback:   true,
+  };
+}
+
 /**
  * Ekstrak teks dari berbagai tipe pesan Baileys.
  * @param {Object} msg - Message object dari Baileys
@@ -36,16 +114,29 @@ export async function handleIncomingMessage(sock, msg) {
   // Abaikan update status/notifikasi sistem
   if (!msg.message) return;
 
-  const remoteJid     = msg.key.remoteJid;
-  const isGroup       = remoteJid.endsWith('@g.us');
-  const phoneNumber   = isGroup
-    ? (msg.key.participant || '').replace('@s.whatsapp.net', '')
-    : remoteJid.replace('@s.whatsapp.net', '');
-  const groupId       = isGroup ? remoteJid.replace('@g.us', '') : null;
+  const remoteJid     = msg.key.remoteJid || '';
+  if (remoteJid === 'status@broadcast' || remoteJid.endsWith('@broadcast')) {
+    logger.debug({ remoteJid }, 'Pesan broadcast/status diabaikan');
+    return;
+  }
+
+  const isGroup = remoteJid.endsWith('@g.us');
+  const {
+    phoneNumber,
+    senderRef,
+    senderSource,
+    senderRaw,
+    isFallback,
+  } = resolveSenderIdentity(msg);
+  const groupId = isGroup ? remoteJid.replace('@g.us', '') : null;
 
   const { text: messageText, type: messageType } = extractMessageContent(msg);
 
-  logger.info({ phoneNumber, isGroup, messageType }, 'Pesan masuk diterima');
+  logger.info({ phoneNumber: senderRef, isGroup, messageType, remoteJid }, 'Pesan masuk diterima');
+  logger.debug(
+    { senderSource, senderRaw, isFallback, hasMsisdn: Boolean(phoneNumber) },
+    'Diagnostik resolusi sender'
+  );
 
   // Ambil semua setting sekaligus (parallel query)
   const [autoReplyEnabled, ignoreGroups, replyMessage, replyDelayMs] = await Promise.all([
@@ -59,7 +150,7 @@ export async function handleIncomingMessage(sock, msg) {
   if (isGroup && ignoreGroups === 'true') {
     logger.debug({ groupId }, 'Pesan dari grup diabaikan (ignore_groups=true)');
     await saveMessageLog({
-      fromNumber:  phoneNumber,
+      fromNumber:  senderRef,
       messageText,
       messageType,
       isAllowed:   false,
@@ -71,7 +162,7 @@ export async function handleIncomingMessage(sock, msg) {
   }
 
   // Cek allow-list
-  const allowed = await isAllowedNumber(phoneNumber);
+  const allowed = phoneNumber ? await isAllowedNumber(phoneNumber) : false;
 
   let replied    = false;
   let replyText  = null;
@@ -96,7 +187,7 @@ export async function handleIncomingMessage(sock, msg) {
 
   // Log ke database apapun hasilnya
   await saveMessageLog({
-    fromNumber:  phoneNumber,
+    fromNumber:  senderRef,
     messageText,
     messageType,
     isAllowed:   allowed,

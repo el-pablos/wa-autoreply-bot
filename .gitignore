@@ -45,6 +45,8 @@ Thumbs.db
 # Logs
 *.log
 logs/
+!dashboard/resources/views/logs/
+!dashboard/resources/views/logs/index.blade.php
 coverage/
 bot/coverage/
 

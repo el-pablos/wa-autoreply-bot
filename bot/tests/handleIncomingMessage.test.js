@@ -46,6 +46,20 @@ describe('handleIncomingMessage', () => {
     expect(mockSaveMessageLog).not.toHaveBeenCalled();
   });
 
+  test('abaikan status broadcast', async () => {
+    const sock = { sendMessage: jest.fn() };
+    const msg = {
+      key: { fromMe: false, remoteJid: 'status@broadcast' },
+      message: { conversation: 'status update' },
+    };
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(mockIsAllowedNumber).not.toHaveBeenCalled();
+    expect(mockSaveMessageLog).not.toHaveBeenCalled();
+    expect(sock.sendMessage).not.toHaveBeenCalled();
+  });
+
   test('pesan grup diabaikan saat ignore_groups=true tapi tetap dilog', async () => {
     const sock = { sendMessage: jest.fn() };
     const msg = {
@@ -100,6 +114,61 @@ describe('handleIncomingMessage', () => {
         isAllowed: true,
         replied: true,
         replyText: 'Balasan test',
+      })
+    );
+  });
+
+  test('kirim auto-reply untuk JID dengan suffix device', async () => {
+    const sendMessage = jest.fn().mockResolvedValue(undefined);
+    const sock = { sendMessage };
+    const msg = {
+      key: { fromMe: false, remoteJid: '628777777777:87@s.whatsapp.net' },
+      message: { conversation: 'halo dari multi-device' },
+    };
+
+    mockGetSetting
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('Balasan multi-device')
+      .mockResolvedValueOnce('0');
+    mockIsAllowedNumber.mockResolvedValueOnce(true);
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(mockIsAllowedNumber).toHaveBeenCalledWith('628777777777');
+    expect(sendMessage).toHaveBeenCalledWith('628777777777:87@s.whatsapp.net', { text: 'Balasan multi-device' });
+    expect(mockSaveMessageLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fromNumber: '628777777777',
+        isAllowed: true,
+        replied: true,
+      })
+    );
+  });
+
+  test('identifier non-msisdn disimpan sebagai fallback dan tidak cek allowlist', async () => {
+    const sendMessage = jest.fn();
+    const sock = { sendMessage };
+    const msg = {
+      key: { fromMe: false, remoteJid: '20233641300057@lid' },
+      message: { conversation: 'halo dari lid' },
+    };
+
+    mockGetSetting
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('reply text')
+      .mockResolvedValueOnce('0');
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(mockIsAllowedNumber).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(mockSaveMessageLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fromNumber: 'non_msisdn:20233641300057',
+        isAllowed: false,
+        replied: false,
       })
     );
   });
