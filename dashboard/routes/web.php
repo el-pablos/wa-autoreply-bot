@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AllowListController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\ApprovedSessionController;
 use Illuminate\Support\Facades\Route;
 
 // Auth
@@ -32,4 +33,8 @@ Route::middleware('simple.auth')->group(function () {
     // Settings
     Route::get('/settings',                            [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings',                           [SettingController::class, 'update'])->name('settings.update');
+
+    // Approved sessions
+    Route::get('/approved-sessions',                   [ApprovedSessionController::class, 'index'])->name('approved.index');
+    Route::post('/approved-sessions/{id}/revoke',      [ApprovedSessionController::class, 'revoke'])->name('approved.revoke');
 });

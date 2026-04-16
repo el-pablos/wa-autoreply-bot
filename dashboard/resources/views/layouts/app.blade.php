@@ -191,6 +191,9 @@
     <a href="{{ route('logs.index') }}"       class="{{ request()->routeIs('logs*') ? 'active' : '' }}">
       <span class="icon">📝</span> Log Pesan
     </a>
+    <a href="{{ route('approved.index') }}"   class="{{ request()->routeIs('approved*') ? 'active' : '' }}">
+      <span class="icon">✅</span> Approved Session
+    </a>
     <a href="{{ route('settings.index') }}"   class="{{ request()->routeIs('settings*') ? 'active' : '' }}">
       <span class="icon">⚙️</span> Pengaturan
     </a>
