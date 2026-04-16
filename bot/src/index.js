@@ -10,7 +10,9 @@ import QRCode from 'qrcode';
 import { config }                  from './config.js';
 import { logger }                  from './utils/logger.js';
 import { updateBotStatus, getPool } from './db.js';
+import { routeCommand }            from './handlers/commandHandler.js';
 import { handleIncomingMessage }   from './handlers/messageHandler.js';
+import { startScheduler, stopScheduler } from './utils/scheduler.js';
 
 let qrCodeDataURL = null;
 let connectionStatus = 'disconnected';
@@ -92,6 +94,8 @@ async function connectToWhatsApp() {
     process.exit(1);
   }
 
+  await startScheduler();
+
   const { state, saveCreds } = await useMultiFileAuthState(config.bot.authDir);
   const { version }          = await fetchLatestBaileysVersion();
 
@@ -159,6 +163,8 @@ async function connectToWhatsApp() {
 
     for (const msg of messages) {
       try {
+        const commandHandled = await routeCommand(sock, msg);
+        if (commandHandled) continue;
         await handleIncomingMessage(sock, msg);
       } catch (err) {
         logger.error({ err, msgId: msg.key?.id }, 'Error saat handle pesan');
@@ -170,12 +176,14 @@ async function connectToWhatsApp() {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM diterima. Menutup koneksi...');
+  stopScheduler();
   await updateBotStatus('offline').catch(() => {});
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT diterima. Menutup koneksi...');
+  stopScheduler();
   await updateBotStatus('offline').catch(() => {});
   process.exit(0);
 });

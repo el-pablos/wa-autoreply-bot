@@ -1,5 +1,11 @@
 import { logger } from '../utils/logger.js';
-import { getSetting, isAllowedNumber, saveMessageLog } from '../db.js';
+import {
+  getSetting,
+  isAllowedNumber,
+  isInApprovedSession,
+  refreshApprovedSession,
+  saveMessageLog,
+} from '../db.js';
 
 export function normalizePhoneNumber(rawJid = '') {
   const base   = String(rawJid).trim().split('@')[0].split(':')[0];
@@ -172,12 +178,22 @@ export async function handleIncomingMessage(sock, msg) {
       'Sender unresolved: auto-reply dilewati'
     );
   }
+  const approvedActive = phoneNumber ? await isInApprovedSession(phoneNumber) : false;
+  if (approvedActive) {
+    const expiryHoursSetting = await getSetting('approve_expiry_hours');
+    const expiryHours = Math.max(1, parseInt(expiryHoursSetting || '24', 10) || 24);
+    await refreshApprovedSession(phoneNumber, expiryHours);
+    logger.info({ phoneNumber }, 'Sender dalam sesi approve aktif, auto-reply dilewati');
+  }
+
   const allowed = phoneNumber ? await isAllowedNumber(phoneNumber) : false;
 
   let replied    = false;
   let replyText  = null;
 
-  if (allowed && autoReplyEnabled === 'true') {
+  if (approvedActive) {
+    logger.debug({ phoneNumber }, 'Auto-reply skip karena sesi approve aktif');
+  } else if (allowed && autoReplyEnabled === 'true') {
     replyText = replyMessage || 'Haiii, lagi offline sebentar! 😴';
 
     // Delay natural sebelum kirim

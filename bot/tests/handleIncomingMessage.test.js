@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 const mockGetSetting = jest.fn();
 const mockIsAllowedNumber = jest.fn();
+const mockIsInApprovedSession = jest.fn();
+const mockRefreshApprovedSession = jest.fn();
 const mockSaveMessageLog = jest.fn();
 const mockLogger = {
   info: jest.fn(),
@@ -12,6 +14,8 @@ const mockLogger = {
 jest.unstable_mockModule('../src/db.js', () => ({
   getSetting: mockGetSetting,
   isAllowedNumber: mockIsAllowedNumber,
+  isInApprovedSession: mockIsInApprovedSession,
+  refreshApprovedSession: mockRefreshApprovedSession,
   saveMessageLog: mockSaveMessageLog,
 }));
 
@@ -24,6 +28,8 @@ const { handleIncomingMessage } = await import('../src/handlers/messageHandler.j
 describe('handleIncomingMessage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsInApprovedSession.mockResolvedValue(false);
+    mockRefreshApprovedSession.mockResolvedValue(true);
   });
 
   test('abaikan pesan dari diri sendiri', async () => {
@@ -103,6 +109,7 @@ describe('handleIncomingMessage', () => {
       .mockResolvedValueOnce('false')
       .mockResolvedValueOnce('Balasan test')
       .mockResolvedValueOnce('0');
+    mockIsInApprovedSession.mockResolvedValueOnce(false);
     mockIsAllowedNumber.mockResolvedValueOnce(true);
 
     await handleIncomingMessage(sock, msg);
@@ -131,6 +138,7 @@ describe('handleIncomingMessage', () => {
       .mockResolvedValueOnce('false')
       .mockResolvedValueOnce('Balasan multi-device')
       .mockResolvedValueOnce('0');
+    mockIsInApprovedSession.mockResolvedValueOnce(false);
     mockIsAllowedNumber.mockResolvedValueOnce(true);
 
     await handleIncomingMessage(sock, msg);
@@ -163,6 +171,7 @@ describe('handleIncomingMessage', () => {
       .mockResolvedValueOnce('false')
       .mockResolvedValueOnce('Balasan senderPn')
       .mockResolvedValueOnce('0');
+    mockIsInApprovedSession.mockResolvedValueOnce(false);
     mockIsAllowedNumber.mockResolvedValueOnce(true);
 
     await handleIncomingMessage(sock, msg);
@@ -196,6 +205,7 @@ describe('handleIncomingMessage', () => {
       .mockResolvedValueOnce('false')
       .mockResolvedValueOnce('Balasan participantPn')
       .mockResolvedValueOnce('0');
+    mockIsInApprovedSession.mockResolvedValueOnce(false);
     mockIsAllowedNumber.mockResolvedValueOnce(true);
 
     await handleIncomingMessage(sock, msg);
@@ -258,6 +268,7 @@ describe('handleIncomingMessage', () => {
       .mockResolvedValueOnce('false')
       .mockResolvedValueOnce('fallback text')
       .mockResolvedValueOnce('0');
+    mockIsInApprovedSession.mockResolvedValueOnce(false);
     mockIsAllowedNumber.mockResolvedValueOnce(true);
 
     await handleIncomingMessage(sock, msg);
@@ -286,6 +297,7 @@ describe('handleIncomingMessage', () => {
       .mockResolvedValueOnce('false')
       .mockResolvedValueOnce('reply text')
       .mockResolvedValueOnce('0');
+    mockIsInApprovedSession.mockResolvedValueOnce(false);
     mockIsAllowedNumber.mockResolvedValueOnce(false);
 
     await handleIncomingMessage(sock, msg);
@@ -298,6 +310,35 @@ describe('handleIncomingMessage', () => {
         replied: false,
         replyText: null,
         groupId: null,
+      })
+    );
+  });
+
+  test('skip auto-reply dan refresh expiry ketika sender dalam approved session', async () => {
+    const sendMessage = jest.fn();
+    const sock = { sendMessage };
+    const msg = {
+      key: { fromMe: false, remoteJid: '628999999999@s.whatsapp.net' },
+      message: { conversation: 'halo owner' },
+    };
+
+    mockGetSetting
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('reply text')
+      .mockResolvedValueOnce('0')
+      .mockResolvedValueOnce('24');
+    mockIsInApprovedSession.mockResolvedValueOnce(true);
+    mockIsAllowedNumber.mockResolvedValueOnce(true);
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(mockRefreshApprovedSession).toHaveBeenCalledWith('628999999999', 24);
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(mockSaveMessageLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fromNumber: '628999999999',
+        replied: false,
       })
     );
   });
