@@ -1,1 +1,263 @@
+@import "tailwindcss";
 
+@theme {
+    /* === Paper Editorial Tokens === */
+
+    /* Backgrounds */
+    --color-paper: #f6f3ec;
+    --color-card: #ffffff;
+    --color-card-muted: #faf7ef;
+
+    /* Ink (text & strong borders) */
+    --color-ink: #1a1a1a;
+    --color-ink-muted: #5a4a2a;
+
+    /* Brand accents */
+    --color-brass-50: #faf6e8;
+    --color-brass-100: #f0e9d0;
+    --color-brass-200: #d9cfa8;
+    --color-brass-400: #b9a87a;
+    --color-brass: #a89b6a;
+    --color-brass-700: #806f43;
+    --color-rule: #e7e1d3;
+
+    /* Status semantic */
+    --color-verified: #2f6b3d;
+    --color-verified-soft: #d6e8d9;
+    --color-pending: #a89b6a;
+    --color-pending-soft: #f0e9d0;
+    --color-danger: #c92a2a;
+    --color-danger-soft: #fadbd8;
+    --color-info: #1f3b6b;
+    --color-info-soft: #d9e1ee;
+
+    /* Typography */
+    --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+    --font-body:
+        "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono:
+        "JetBrains Mono", "SF Mono", "Cascadia Code", "Courier New", monospace;
+
+    /* Editorial signature shadows */
+    --shadow-stamp: 3px 3px 0 var(--color-ink);
+    --shadow-stamp-sm: 2px 2px 0 var(--color-ink);
+    --shadow-stamp-brass: 3px 3px 0 var(--color-brass);
+    --shadow-soft: 0 4px 12px rgba(26, 26, 26, 0.08);
+    --shadow-elevate: 0 8px 24px rgba(26, 26, 26, 0.12);
+
+    /* Radius */
+    --radius-base: 8px;
+    --radius-sm: 6px;
+    --radius-pill: 18px;
+    --radius-full: 9999px;
+
+    /* Spacing custom */
+    --space-tap: 44px;
+}
+
+/* === Base === */
+@layer base {
+    html {
+        font-family: var(--font-body);
+        background: var(--color-paper);
+        color: var(--color-ink);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+        min-height: 100vh;
+        background: var(--color-paper);
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-family: var(--font-display);
+        color: var(--color-ink);
+        letter-spacing: -0.01em;
+    }
+
+    code,
+    kbd,
+    pre,
+    samp {
+        font-family: var(--font-mono);
+    }
+
+    /* Reduce motion respect */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        ::before,
+        ::after {
+            animation-duration: 0s !important;
+            transition-duration: 0s !important;
+        }
+    }
+}
+
+/* === Editorial Utilities === */
+@layer utilities {
+    .font-display {
+        font-family: var(--font-display);
+    }
+    .font-body {
+        font-family: var(--font-body);
+    }
+    .font-mono {
+        font-family: var(--font-mono);
+    }
+
+    .display-italic {
+        font-family: var(--font-display);
+        font-style: italic;
+        color: var(--color-ink-muted);
+    }
+
+    .eyebrow {
+        font-family: var(--font-body);
+        font-size: 0.5625rem; /* 9px */
+        font-weight: 600;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--color-ink-muted);
+    }
+
+    @media (min-width: 768px) {
+        .eyebrow {
+            font-size: 0.625rem; /* 10px */
+        }
+    }
+
+    .rule-ink {
+        border-top: 1px solid var(--color-ink);
+    }
+
+    .rule-hairline {
+        border-top: 1px solid var(--color-rule);
+    }
+
+    .shadow-stamp {
+        box-shadow: var(--shadow-stamp);
+    }
+    .shadow-stamp-sm {
+        box-shadow: var(--shadow-stamp-sm);
+    }
+    .shadow-stamp-brass {
+        box-shadow: var(--shadow-stamp-brass);
+    }
+
+    .min-tap {
+        min-width: var(--space-tap);
+        min-height: var(--space-tap);
+    }
+
+    .status-bar {
+        width: 6px;
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+
+    /* Editorial newspaper grain (subtle dot texture) */
+    .bg-grain {
+        background-image: radial-gradient(
+            circle,
+            rgba(26, 26, 26, 0.04) 1px,
+            transparent 1px
+        );
+        background-size: 8px 8px;
+    }
+
+    /* Skeleton shimmer */
+    .skeleton {
+        position: relative;
+        overflow: hidden;
+        background: var(--color-card-muted);
+    }
+    .skeleton::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background-image: linear-gradient(
+            90deg,
+            transparent 0,
+            rgba(255, 255, 255, 0.6) 50%,
+            transparent 100%
+        );
+        animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer {
+        100% {
+            transform: translateX(100%);
+        }
+    }
+
+    /* Hairline ::before for editorial section dividers */
+    .editorial-divider::before {
+        content: "";
+        display: block;
+        height: 1px;
+        background: var(--color-ink);
+        margin-bottom: 1rem;
+    }
+}
+
+/* === Component-ish helpers (keep minimal, prefer Blade components) === */
+@layer components {
+    .btn-base {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-family: var(--font-body);
+        font-weight: 600;
+        font-size: 0.875rem;
+        line-height: 1;
+        transition:
+            transform 0.12s ease,
+            box-shadow 0.12s ease,
+            background-color 0.12s ease;
+        cursor: pointer;
+        user-select: none;
+        border: 1px solid transparent;
+    }
+
+    .btn-base:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .btn-base:focus-visible {
+        outline: 2px solid var(--color-ink);
+        outline-offset: 2px;
+    }
+}
+
+/* Local font declarations (gunakan font local kalau tersedia, fallback ke web font load via layout) */
+@font-face {
+    font-family: "Playfair Display";
+    font-style: normal;
+    font-weight: 400 900;
+    font-display: swap;
+    src: local("Playfair Display");
+}
+
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: local("Inter");
+}
+
+@font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 100 800;
+    font-display: swap;
+    src: local("JetBrains Mono");
+}
