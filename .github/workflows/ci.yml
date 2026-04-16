@@ -84,7 +84,10 @@ jobs:
 
       - name: Verifikasi health endpoint bot
         run: |
-          docker run -d --name test-bot -e DB_HOST=localhost -e DB_PASSWORD=test -p 3001:3001 wa-bot:test
+          CONTAINER_NAME="test-bot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+          docker run -d --name "$CONTAINER_NAME" -e DB_HOST=localhost -e DB_PASSWORD=test -p 0:3001 wa-bot:test
+          HOST_PORT=$(docker port "$CONTAINER_NAME" 3001/tcp | awk -F: '{print $2}')
           sleep 10
-          curl -f http://localhost:3001/health || echo "Bot health check (DB belum ada, expected)"
-          docker stop test-bot
+          curl -f "http://localhost:${HOST_PORT}/health" || echo "Bot health check (DB belum ada, expected)"
+          docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
