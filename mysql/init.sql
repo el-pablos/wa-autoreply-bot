@@ -60,3 +60,30 @@ INSERT INTO bot_settings (`key`, `value`, description) VALUES
   ('bot_status',         'offline', 'Status koneksi bot: online | offline | connecting'),
   ('ignore_groups',      'true',  'Abaikan pesan dari grup. Value: true | false')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
+
+-- ============================================================
+-- TABLE: approved_sessions
+-- Sesi bypass auto-reply untuk nomor tertentu (/approve)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS approved_sessions (
+    id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    phone_number      VARCHAR(20) NOT NULL,
+    approved_at       TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_activity_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at        TIMESTAMP   NOT NULL,
+    is_active         TINYINT(1)  NOT NULL DEFAULT 1,
+    approved_by       VARCHAR(20) NOT NULL,
+    revoked_at        TIMESTAMP   NULL,
+    INDEX idx_phone_active (phone_number, is_active),
+    INDEX idx_expires_at   (expires_at),
+    INDEX idx_is_active    (is_active),
+    INDEX idx_approved_at  (approved_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- SEED: tambah setting baru untuk fitur approve
+-- ============================================================
+INSERT INTO bot_settings (`key`, `value`, description) VALUES
+  ('approve_expiry_hours', '24',   'Durasi approve session dalam jam — default 24 jam'),
+  ('approve_expire_check_interval_minutes', '5', 'Seberapa sering scheduler cek expired sessions (menit)')
+ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);

@@ -10,9 +10,10 @@ describe('config', () => {
     expect(config.db.connectionLimit).toBeGreaterThan(0);
   });
 
-  test('config.bot harus punya port dan authDir', () => {
+  test('config.bot harus punya port, authDir, dan ownerNumber', () => {
     expect(config.bot).toHaveProperty('port');
     expect(config.bot).toHaveProperty('authDir');
+    expect(config.bot).toHaveProperty('ownerNumber');
     expect(typeof config.bot.port).toBe('number');
     expect(config.bot.port).toBeGreaterThan(0);
   });

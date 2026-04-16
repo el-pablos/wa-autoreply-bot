@@ -13,9 +13,10 @@ export const config = {
     charset:            'utf8mb4',
   },
   bot: {
-    port:     parseInt(process.env.BOT_PORT || '3001', 10),
-    authDir:  './auth_info',
-    logLevel: process.env.LOG_LEVEL || 'info',
+    port:        parseInt(process.env.BOT_PORT || '3001', 10),
+    authDir:     './auth_info',
+    logLevel:    process.env.LOG_LEVEL || 'info',
+    ownerNumber: process.env.OWNER_NUMBER || '',
   },
   env: process.env.NODE_ENV || 'development',
 };
