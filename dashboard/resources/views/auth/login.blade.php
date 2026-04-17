@@ -1,42 +1,89 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — WA Bot Monitor</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root { --accent: #25d366; --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --danger: #f85149; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; width: 100%; max-width: 380px; }
-    .logo { text-align: center; font-size: 2.5rem; margin-bottom: .5rem; }
-    h1 { text-align: center; font-size: 1.25rem; font-weight: 700; margin-bottom: .25rem; }
-    .sub { text-align: center; font-size: .825rem; color: #8b949e; margin-bottom: 1.75rem; }
-    label { display: block; font-size: .825rem; font-weight: 500; color: #8b949e; margin-bottom: .35rem; }
-    input[type="password"] { width: 100%; padding: .65rem .875rem; background: #21262d; border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: .875rem; font-family: inherit; transition: border-color .15s; }
-    input[type="password"]:focus { outline: none; border-color: var(--accent); }
-    button { width: 100%; margin-top: 1rem; padding: .7rem; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: 600; font-size: .9rem; cursor: pointer; transition: opacity .15s; }
-    button:hover { opacity: .85; }
-    .error { background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.3); color: var(--danger); padding: .65rem .875rem; border-radius: 8px; font-size: .825rem; margin-bottom: 1rem; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f6f3ec">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Masuk — Operator's Console</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,700;0,800;0,900;1,400;1,700&display=swap" rel="stylesheet">
+
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body>
-  <div class="login-box">
-    <div class="logo">🤖</div>
-    <h1>WA Bot Monitor</h1>
-    <p class="sub">Masukkan password untuk lanjut</p>
-    @if($errors->has('password'))
-      <div class="error">❌ {{ $errors->first('password') }}</div>
-    @endif
-    <form action="{{ route('login.post') }}" method="POST">
-      @csrf
-      <div>
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" placeholder="••••••••" autofocus>
-      </div>
-      <button type="submit">Masuk →</button>
-    </form>
-  </div>
+<body class="bg-[var(--color-paper)] text-[var(--color-ink)] font-body antialiased min-h-screen bg-grain">
+
+<main class="min-h-screen grid md:grid-cols-2">
+    {{-- Editorial illustration column (desktop only) --}}
+    <aside class="hidden md:flex bg-[var(--color-ink)] text-[var(--color-paper)] flex-col justify-between p-12 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-[var(--color-brass)]/10 blur-3xl"></div>
+
+        <div class="relative">
+            <div class="text-[var(--color-brass)] eyebrow">PAPER EDITORIAL · MMXXVI</div>
+            <div class="font-display font-black text-5xl mt-4 leading-none">
+                Operator's<br>Console.
+            </div>
+            <div class="font-display italic text-xl text-[var(--color-brass)] mt-3">Untuk yang menjaga channel WA tetap hidup.</div>
+        </div>
+
+        <div class="relative space-y-3 max-w-md">
+            <div class="border-t border-[var(--color-brass)] pt-4">
+                <div class="eyebrow text-[var(--color-brass)]">EDITORIAL</div>
+                <p class="text-[var(--color-paper)]/80 mt-2 text-sm leading-relaxed">
+                    "Setiap percakapan yang lewat butuh penjaga. Dashboard ini memastikan tidak ada yang terlewat — sambil
+                    membiarkan kamu tidur tenang."
+                </p>
+            </div>
+            <div class="font-mono text-xs text-[var(--color-brass)]">
+                v.{{ config('app.version', '2.0.0') }} · cihuy.deploy
+            </div>
+        </div>
+    </aside>
+
+    {{-- Form column --}}
+    <section class="flex items-center justify-center p-6 md:p-12">
+        <div class="w-full max-w-sm">
+            <div class="md:hidden mb-8 text-center">
+                <div class="eyebrow">PAPER EDITORIAL</div>
+                <div class="font-display font-black text-3xl mt-1 leading-none">Operator's Console</div>
+                <div class="display-italic text-sm mt-1">WhatsApp auto-reply bot</div>
+            </div>
+
+            <x-ui.card editorial padding="lg">
+                <div class="text-center mb-6">
+                    <div class="eyebrow">SIGN IN</div>
+                    <h1 class="font-display font-extrabold text-3xl text-[var(--color-ink)] mt-1">Masuk</h1>
+                    <p class="display-italic text-sm mt-1">Masukkan password operator untuk lanjut</p>
+                </div>
+
+                <form action="{{ route('login.post') }}" method="POST" class="space-y-4">
+                    @csrf
+
+                    <x-ui.input
+                        name="password"
+                        type="password"
+                        label="Password"
+                        placeholder="••••••••"
+                        :error="$errors->first('password')"
+                        required
+                        autofocus
+                    />
+
+                    <x-ui.button type="submit" variant="primary" size="lg" block>
+                        Masuk →
+                    </x-ui.button>
+                </form>
+
+                <div class="mt-6 pt-4 border-t border-[var(--color-rule)] text-center">
+                    <div class="eyebrow">PROTECTED BY</div>
+                    <div class="text-xs font-mono text-[var(--color-ink-muted)] mt-1">simple.auth · CSRF · session</div>
+                </div>
+            </x-ui.card>
+        </div>
+    </section>
+</main>
+
 </body>
 </html>
