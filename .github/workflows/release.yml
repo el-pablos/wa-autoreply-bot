@@ -1,81 +1,225 @@
-name: Release — Auto Tag & Publish
+name: Release — Auto Tag, Release, dan Publish Docker
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      bump:
+        description: "Tipe bump: major / minor / patch"
+        required: false
+        default: "patch"
 
 permissions:
   contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  release:
-    name: Buat Release Otomatis
+  version:
+    name: Hitung Versi Semver
     runs-on: [self-hosted, linux, x64, ubuntu-latest]
-
+    outputs:
+      new_tag: ${{ steps.calc.outputs.new_tag }}
+      new_version: ${{ steps.calc.outputs.new_version }}
+      prev_tag: ${{ steps.prev.outputs.prev_tag }}
+      should_release: ${{ steps.calc.outputs.should_release }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Ambil tag terakhir
-        id: get_tag
+      - name: Tag terakhir
+        id: prev
         run: |
           LATEST=$(git tag --sort=-v:refname | head -n1)
-          if [ -z "$LATEST" ]; then
-            LATEST="v0.0.0"
-          fi
-          echo "latest=${LATEST}" >> $GITHUB_OUTPUT
-          echo "Tag terakhir: $LATEST"
+          [ -z "$LATEST" ] && LATEST="v0.0.0"
+          echo "prev_tag=${LATEST}" >> $GITHUB_OUTPUT
+          echo "Tag sebelumnya: $LATEST"
 
-      - name: Hitung versi baru (semver patch)
-        id: new_version
+      - name: Hitung versi baru dari conventional commits
+        id: calc
         run: |
-          LATEST="${{ steps.get_tag.outputs.latest }}"
-          VERSION=${LATEST#v}
+          PREV="${{ steps.prev.outputs.prev_tag }}"
+          VERSION=${PREV#v}
           IFS='.' read -r -a parts <<< "$VERSION"
           MAJOR=${parts[0]:-0}
-          MINOR=${parts[1]:-1}
+          MINOR=${parts[1]:-0}
           PATCH=${parts[2]:-0}
-          NEW_PATCH=$((PATCH + 1))
-          NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
-          echo "new_tag=${NEW_TAG}" >> $GITHUB_OUTPUT
-          echo "Versi baru: $NEW_TAG"
 
-      - name: Generate changelog dari commit terbaru
-        id: changelog
-        run: |
-          LATEST="${{ steps.get_tag.outputs.latest }}"
-          if git rev-parse "$LATEST" >/dev/null 2>&1; then
-            LOG=$(git log ${LATEST}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          MANUAL_BUMP="${{ github.event.inputs.bump }}"
+          if [ -n "$MANUAL_BUMP" ]; then
+            BUMP="$MANUAL_BUMP"
           else
-            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
-          fi
-          echo "log<<EOF" >> $GITHUB_OUTPUT
-          echo "$LOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+            # Auto-detect dari pesan commit sejak tag terakhir
+            if git rev-parse "$PREV" >/dev/null 2>&1; then
+              COMMITS=$(git log ${PREV}..HEAD --pretty=format:"%s" --no-merges)
+            else
+              COMMITS=$(git log --pretty=format:"%s" --no-merges)
+            fi
 
-      - name: Buat tag baru
+            BUMP="patch"
+            if echo "$COMMITS" | grep -qiE "(^|\s)(BREAKING CHANGE|major:)"; then
+              BUMP="major"
+            elif echo "$COMMITS" | grep -qiE "(^|\s)(add:|feat:|feature:|minor:)"; then
+              BUMP="minor"
+            fi
+          fi
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch|*) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          NEW_TAG="v${NEW_VERSION}"
+          echo "new_tag=${NEW_TAG}" >> $GITHUB_OUTPUT
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "should_release=true" >> $GITHUB_OUTPUT
+          echo "Versi baru: $NEW_TAG (bump: $BUMP)"
+
+  release:
+    name: Tag, Changelog, GitHub Release
+    runs-on: [self-hosted, linux, x64, ubuntu-latest]
+    needs: version
+    if: needs.version.outputs.should_release == 'true'
+    outputs:
+      tag: ${{ needs.version.outputs.new_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Buat tag dan push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag ${{ steps.new_version.outputs.new_tag }}
-          git push origin ${{ steps.new_version.outputs.new_tag }}
+          git tag -a ${{ needs.version.outputs.new_tag }} -m "Release ${{ needs.version.outputs.new_tag }}"
+          git push origin ${{ needs.version.outputs.new_tag }}
+
+      - name: Generate changelog dari commit
+        id: changelog
+        run: |
+          PREV="${{ needs.version.outputs.prev_tag }}"
+          if git rev-parse "$PREV" >/dev/null 2>&1; then
+            FEAT=$(git log ${PREV}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- (add|feat|feature):" || true)
+            FIX=$(git log ${PREV}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- (fix|bugfix):" || true)
+            UPD=$(git log ${PREV}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- (update|refactor):" || true)
+            CHORE=$(git log ${PREV}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- (chore|docs|test|style):" || true)
+            OTHER=$(git log ${PREV}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -viE "^- (add|feat|feature|fix|bugfix|update|refactor|chore|docs|test|style):" || true)
+          else
+            FEAT=$(git log --pretty=format:"- %s (%h)" --no-merges -50 | grep -iE "^- (add|feat|feature):" || true)
+            FIX=""
+            UPD=""
+            CHORE=""
+            OTHER=""
+          fi
+
+          {
+            echo "body<<EOF"
+            echo "## 🚀 Fitur Baru"
+            echo "${FEAT:-_tidak ada_}"
+            echo ""
+            echo "## 🐛 Perbaikan Bug"
+            echo "${FIX:-_tidak ada_}"
+            echo ""
+            echo "## ✨ Peningkatan"
+            echo "${UPD:-_tidak ada_}"
+            echo ""
+            echo "## 🔧 Chore & Docs"
+            echo "${CHORE:-_tidak ada_}"
+            if [ -n "$OTHER" ]; then
+              echo ""
+              echo "## 📝 Lainnya"
+              echo "$OTHER"
+            fi
+            echo ""
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV}...${{ needs.version.outputs.new_tag }}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Buat GitHub Release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.new_tag }}
+          name: "🤖 Release ${{ needs.version.outputs.new_tag }}"
+          body: ${{ steps.changelog.outputs.body }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          make_latest: "true"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    name: Build & Push Docker ke GHCR
+    runs-on: [self-hosted, linux, x64, ubuntu-latest]
+    needs: [version, release]
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - { name: bot, context: ./bot, image: wa-autoreply-bot-bot }
+          - {
+              name: dashboard,
+              context: ./dashboard,
+              image: wa-autoreply-bot-dashboard,
+            }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login ke GHCR
+        uses: docker/login-action@v3
         with:
-          tag_name:     ${{ steps.new_version.outputs.new_tag }}
-          release_name: "🤖 Release ${{ steps.new_version.outputs.new_tag }}"
-          body: |
-            ## 🚀 Perubahan di versi ini
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-            ${{ steps.changelog.outputs.log }}
+      - name: Metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.version.outputs.new_version }}
+            type=sha,prefix=sha-,format=short
 
-            ---
-            **Full Changelog**: https://github.com/el-pablos/wa-autoreply-bot/commits/main
-          draft:      false
-          prerelease: false
+      - name: Build & Push (${{ matrix.service.name }})
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+
+  notify:
+    name: Catat Deployment
+    runs-on: [self-hosted, linux, x64, ubuntu-latest]
+    needs: [version, release, docker]
+    if: always() && needs.release.result == 'success'
+    steps:
+      - name: Summary
+        run: |
+          {
+            echo "## 🎉 Release ${{ needs.version.outputs.new_tag }} Sukses"
+            echo ""
+            echo "- Tag: \`${{ needs.version.outputs.new_tag }}\`"
+            echo "- Release: https://github.com/${{ github.repository }}/releases/tag/${{ needs.version.outputs.new_tag }}"
+            echo "- Docker (bot): \`ghcr.io/${{ github.repository_owner }}/wa-autoreply-bot-bot:${{ needs.version.outputs.new_version }}\`"
+            echo "- Docker (dashboard): \`ghcr.io/${{ github.repository_owner }}/wa-autoreply-bot-dashboard:${{ needs.version.outputs.new_version }}\`"
+          } >> $GITHUB_STEP_SUMMARY
