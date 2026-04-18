@@ -5,6 +5,7 @@ import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.min.css";
 import Swal from "sweetalert2";
 import Chart from "chart.js/auto";
+import "./pwa.js";
 
 window.Alpine = Alpine;
 window.flatpickr = flatpickr;
