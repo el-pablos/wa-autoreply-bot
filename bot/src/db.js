@@ -55,6 +55,7 @@ export async function isAllowedNumber(phoneNumber) {
  * @param {boolean} logData.replied
  * @param {string|null} logData.replyText
  * @param {string|null} logData.groupId
+ * @param {number|null} logData.responseTimeMs
  * @returns {Promise<number>} insertId
  */
 export async function saveMessageLog(logData) {
@@ -67,13 +68,25 @@ export async function saveMessageLog(logData) {
     replied,
     replyText = null,
     groupId = null,
+    responseTimeMs = null,
   } = logData;
 
   const [result] = await db.execute(
     `INSERT INTO message_logs
-      (from_number, message_text, message_type, is_allowed, replied, reply_text, group_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [fromNumber, messageText, messageType, isAllowed ? 1 : 0, replied ? 1 : 0, replyText, groupId]
+      (from_number, message_text, message_type, is_allowed, replied, reply_text, group_id, response_time_ms)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      fromNumber,
+      messageText,
+      messageType,
+      isAllowed ? 1 : 0,
+      replied ? 1 : 0,
+      replyText,
+      groupId,
+      responseTimeMs === null || responseTimeMs === undefined
+        ? null
+        : Math.max(0, Number(responseTimeMs) || 0),
+    ]
   );
   return result.insertId;
 }

@@ -1,15 +1,42 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { invalidateKnowledgeBaseCache } from '../src/utils/faqMatcher.js';
 
 const mockGetSetting = jest.fn();
 const mockIsAllowedNumber = jest.fn();
 const mockIsInApprovedSession = jest.fn();
 const mockRefreshApprovedSession = jest.fn();
 const mockSaveMessageLog = jest.fn();
+const mockGetBlacklistEntry = jest.fn();
+const mockSaveRateLimitViolation = jest.fn();
+const mockGetKnowledgeBaseEntries = jest.fn();
+const mockIncrementKnowledgeMatch = jest.fn();
+const mockGetActiveTemplate = jest.fn();
+const mockGetMessageTypeTemplates = jest.fn();
+const mockGetBusinessHourSchedules = jest.fn();
+const mockGetActiveOofSchedules = jest.fn();
+const mockGetRecentConversationHistory = jest.fn();
+const mockSaveAiConversationTurn = jest.fn();
+const mockPruneConversationHistory = jest.fn();
+const mockGetActiveWebhookEndpoints = jest.fn();
+const mockCreateWebhookDeliveryLog = jest.fn();
+const mockUpdateWebhookDeliveryLog = jest.fn();
+const mockTouchWebhookEndpoint = jest.fn();
+const mockSaveEscalationLog = jest.fn();
+const mockGenerateAiReply = jest.fn();
+const mockDispatchWebhook = jest.fn();
 const mockLogger = {
   info: jest.fn(),
   debug: jest.fn(),
   error: jest.fn(),
 };
+
+jest.unstable_mockModule('../src/config.js', () => ({
+  config: {
+    bot: {
+      ownerNumber: '628123456789',
+    },
+  },
+}));
 
 jest.unstable_mockModule('../src/db.js', () => ({
   getSetting: mockGetSetting,
@@ -17,20 +44,87 @@ jest.unstable_mockModule('../src/db.js', () => ({
   isInApprovedSession: mockIsInApprovedSession,
   refreshApprovedSession: mockRefreshApprovedSession,
   saveMessageLog: mockSaveMessageLog,
+  getBlacklistEntry: mockGetBlacklistEntry,
+  saveRateLimitViolation: mockSaveRateLimitViolation,
+  getKnowledgeBaseEntries: mockGetKnowledgeBaseEntries,
+  incrementKnowledgeMatch: mockIncrementKnowledgeMatch,
+  getActiveTemplate: mockGetActiveTemplate,
+  getMessageTypeTemplates: mockGetMessageTypeTemplates,
+  getBusinessHourSchedules: mockGetBusinessHourSchedules,
+  getActiveOofSchedules: mockGetActiveOofSchedules,
+  getRecentConversationHistory: mockGetRecentConversationHistory,
+  saveAiConversationTurn: mockSaveAiConversationTurn,
+  pruneConversationHistory: mockPruneConversationHistory,
+  getActiveWebhookEndpoints: mockGetActiveWebhookEndpoints,
+  createWebhookDeliveryLog: mockCreateWebhookDeliveryLog,
+  updateWebhookDeliveryLog: mockUpdateWebhookDeliveryLog,
+  touchWebhookEndpoint: mockTouchWebhookEndpoint,
+  saveEscalationLog: mockSaveEscalationLog,
 }));
 
 jest.unstable_mockModule('../src/utils/logger.js', () => ({
   logger: mockLogger,
 }));
 
-const { handleIncomingMessage } = await import('../src/handlers/messageHandler.js');
+jest.unstable_mockModule('../src/utils/aiReply.js', () => ({
+  generateAiReply: mockGenerateAiReply,
+}));
+
+jest.unstable_mockModule('../src/utils/webhookDispatcher.js', () => ({
+  dispatchWebhook: mockDispatchWebhook,
+}));
+
+const {
+  handleIncomingMessage,
+  __resetMessagePipelineStateForTest,
+} = await import('../src/handlers/messageHandler.js');
 
 describe('handleIncomingMessage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    __resetMessagePipelineStateForTest();
+    invalidateKnowledgeBaseCache();
+
     mockIsInApprovedSession.mockResolvedValue(false);
     mockRefreshApprovedSession.mockResolvedValue(true);
+    mockGetBlacklistEntry.mockResolvedValue(null);
+    mockSaveRateLimitViolation.mockResolvedValue(1);
+    mockGetKnowledgeBaseEntries.mockResolvedValue([]);
+    mockIncrementKnowledgeMatch.mockResolvedValue(true);
+    mockGetActiveTemplate.mockResolvedValue(null);
+    mockGetMessageTypeTemplates.mockResolvedValue([]);
+    mockGetBusinessHourSchedules.mockResolvedValue([]);
+    mockGetActiveOofSchedules.mockResolvedValue([]);
+    mockGetRecentConversationHistory.mockResolvedValue([]);
+    mockSaveAiConversationTurn.mockResolvedValue(1);
+    mockPruneConversationHistory.mockResolvedValue(0);
+    mockGetActiveWebhookEndpoints.mockResolvedValue([]);
+    mockCreateWebhookDeliveryLog.mockResolvedValue(1);
+    mockUpdateWebhookDeliveryLog.mockResolvedValue(true);
+    mockTouchWebhookEndpoint.mockResolvedValue(true);
+    mockSaveEscalationLog.mockResolvedValue(1);
+    mockGenerateAiReply.mockResolvedValue({
+      content: 'Balasan AI',
+      tokens: 42,
+      latencyMs: 10,
+      provider: 'groq',
+      model: 'llama',
+    });
+    mockDispatchWebhook.mockResolvedValue({
+      success: true,
+      statusCode: 200,
+      attempts: 1,
+      responseBody: 'ok',
+      error: null,
+    });
   });
+
+  function useSettings(map) {
+    mockGetSetting.mockImplementation(async (key) => {
+      if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
+      return null;
+    });
+  }
 
   test('abaikan pesan dari diri sendiri', async () => {
     const sock = { sendMessage: jest.fn() };
@@ -341,5 +435,245 @@ describe('handleIncomingMessage', () => {
         replied: false,
       })
     );
+  });
+
+  test('skip auto-reply jika nomor masuk blacklist', async () => {
+    const sendMessage = jest.fn();
+    const sock = { sendMessage };
+    const msg = {
+      key: { fromMe: false, remoteJid: '628555111111@s.whatsapp.net' },
+      message: { conversation: 'halo' },
+    };
+
+    mockGetSetting
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('reply text')
+      .mockResolvedValueOnce('0');
+    mockGetBlacklistEntry.mockResolvedValueOnce({
+      id: 1,
+      phone_number: '628555111111',
+      unblock_at: null,
+      is_active: 1,
+    });
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(mockSaveMessageLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fromNumber: '628555111111',
+        replied: false,
+      })
+    );
+  });
+
+  test('skip auto-reply jika rate limit terlampaui', async () => {
+    const sendMessage = jest.fn();
+    const sock = { sendMessage };
+    const msg = {
+      key: { fromMe: false, remoteJid: '628666111111@s.whatsapp.net' },
+      message: { conversation: 'halo lagi' },
+    };
+
+    // Pesan pertama: masih lolos.
+    mockGetSetting
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('reply text')
+      .mockResolvedValueOnce('0')
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('60')
+      .mockResolvedValueOnce('1')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('false');
+    mockIsAllowedNumber.mockResolvedValue(true);
+
+    await handleIncomingMessage(sock, msg);
+
+    // Pesan kedua: kena limit karena max=1 dalam window aktif.
+    mockGetSetting
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('false')
+      .mockResolvedValueOnce('reply text')
+      .mockResolvedValueOnce('0')
+      .mockResolvedValueOnce('true')
+      .mockResolvedValueOnce('60')
+      .mockResolvedValueOnce('1');
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(mockSaveRateLimitViolation).toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  test('FAQ match diprioritaskan dan incrementKnowledgeMatch dipanggil', async () => {
+    const sendMessage = jest.fn().mockResolvedValue(undefined);
+    const sock = { sendMessage };
+    const msg = {
+      key: { fromMe: false, remoteJid: '628700000001@s.whatsapp.net' },
+      message: { conversation: 'boleh info harga website?' },
+    };
+
+    useSettings({
+      auto_reply_enabled: 'true',
+      ignore_groups: 'false',
+      reply_message: 'fallback',
+      reply_delay_ms: '0',
+      rate_limit_enabled: 'false',
+      ai_reply_enabled: 'false',
+      business_hours_enabled: 'false',
+      oof_enabled: 'false',
+      human_typing_enabled: 'false',
+      escalation_enabled: 'false',
+      webhook_enabled: 'false',
+    });
+
+    mockIsAllowedNumber.mockResolvedValue(true);
+    mockGetKnowledgeBaseEntries.mockResolvedValue([
+      {
+        id: 77,
+        question: 'Berapa harga website?',
+        keywords: ['harga website'],
+        answer: 'Harga mulai 2 juta.',
+        is_active: 1,
+      },
+    ]);
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(sendMessage).toHaveBeenCalledWith('628700000001@s.whatsapp.net', {
+      text: 'Harga mulai 2 juta.',
+    });
+    expect(mockIncrementKnowledgeMatch).toHaveBeenCalledWith(77);
+  });
+
+  test('AI reply dipakai saat FAQ miss dan ai_reply_enabled=true', async () => {
+    const sendMessage = jest.fn().mockResolvedValue(undefined);
+    const sock = { sendMessage };
+    const msg = {
+      key: { fromMe: false, remoteJid: '628700000002@s.whatsapp.net' },
+      message: { conversation: 'tolong bantu jawab detail project' },
+    };
+
+    useSettings({
+      auto_reply_enabled: 'true',
+      ignore_groups: 'false',
+      reply_message: 'fallback',
+      reply_delay_ms: '0',
+      rate_limit_enabled: 'false',
+      ai_reply_enabled: 'true',
+      ai_model: 'groq:llama-3.3-70b-versatile',
+      ai_system_prompt: 'kamu asisten',
+      ai_api_key: 'dummy-key',
+      business_hours_enabled: 'false',
+      oof_enabled: 'false',
+      human_typing_enabled: 'false',
+      escalation_enabled: 'false',
+      webhook_enabled: 'false',
+    });
+
+    mockIsAllowedNumber.mockResolvedValue(true);
+    mockGetKnowledgeBaseEntries.mockResolvedValue([]);
+    mockGetRecentConversationHistory.mockResolvedValue([
+      { role: 'user', content: 'halo', created_at: '2026-04-19T01:00:00.000Z' },
+    ]);
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(mockGenerateAiReply).toHaveBeenCalled();
+    expect(mockSaveAiConversationTurn).toHaveBeenCalledTimes(2);
+    expect(sendMessage).toHaveBeenCalledWith('628700000002@s.whatsapp.net', {
+      text: 'Balasan AI',
+    });
+  });
+
+  test('outside business hours override mengganti reply', async () => {
+    const sendMessage = jest.fn().mockResolvedValue(undefined);
+    const sock = { sendMessage };
+    const msg = {
+      key: { fromMe: false, remoteJid: '628700000003@s.whatsapp.net' },
+      message: { conversation: 'halo jam kerja?' },
+    };
+
+    useSettings({
+      auto_reply_enabled: 'true',
+      ignore_groups: 'false',
+      reply_message: 'fallback default',
+      reply_delay_ms: '0',
+      rate_limit_enabled: 'false',
+      ai_reply_enabled: 'false',
+      business_hours_enabled: 'true',
+      outside_business_hours_message: 'di luar jam kerja',
+      oof_enabled: 'false',
+      human_typing_enabled: 'false',
+      escalation_enabled: 'false',
+      webhook_enabled: 'false',
+    });
+
+    mockIsAllowedNumber.mockResolvedValue(true);
+    mockGetBusinessHourSchedules.mockResolvedValue([
+      {
+        weekday: 1,
+        start_time: '23:00:00',
+        end_time: '01:00:00',
+        timezone: 'Asia/Jakarta',
+        is_active: 1,
+      },
+    ]);
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(sendMessage).toHaveBeenCalledWith('628700000003@s.whatsapp.net', {
+      text: 'di luar jam kerja',
+    });
+  });
+
+  test('escalation + webhook dijalankan setelah reply sukses', async () => {
+    const sendMessage = jest.fn().mockResolvedValue(undefined);
+    const sock = { sendMessage };
+    const msg = {
+      key: { fromMe: false, remoteJid: '628700000004@s.whatsapp.net' },
+      message: { conversation: 'saya komplain layanan ini' },
+    };
+
+    useSettings({
+      auto_reply_enabled: 'true',
+      ignore_groups: 'false',
+      reply_message: 'fallback default',
+      reply_delay_ms: '0',
+      rate_limit_enabled: 'false',
+      ai_reply_enabled: 'false',
+      business_hours_enabled: 'false',
+      oof_enabled: 'false',
+      human_typing_enabled: 'false',
+      escalation_enabled: 'true',
+      escalation_keywords: 'komplain,refund',
+      escalation_cooldown_minutes: '15',
+      webhook_enabled: 'true',
+    });
+
+    mockIsAllowedNumber.mockResolvedValue(true);
+    mockGetActiveWebhookEndpoints.mockResolvedValue([
+      { id: 11, url: 'https://example.com/hook', secret: 'abc' },
+    ]);
+
+    await handleIncomingMessage(sock, msg);
+
+    expect(sendMessage).toHaveBeenCalledWith('628700000004@s.whatsapp.net', {
+      text: 'fallback default',
+    });
+    expect(sendMessage).toHaveBeenCalledWith('628123456789@s.whatsapp.net', {
+      text: expect.stringContaining('Escalation trigger terdeteksi'),
+    });
+    expect(mockSaveEscalationLog).toHaveBeenCalled();
+    expect(mockCreateWebhookDeliveryLog).toHaveBeenCalled();
+    expect(mockDispatchWebhook).toHaveBeenCalled();
+    expect(mockUpdateWebhookDeliveryLog).toHaveBeenCalled();
+    expect(mockTouchWebhookEndpoint).toHaveBeenCalledWith(11);
   });
 });
