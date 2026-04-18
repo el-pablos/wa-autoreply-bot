@@ -199,10 +199,13 @@
         <div>
           <div class="eyebrow">AI REPLY</div>
           <h3 class="font-display font-bold text-xl text-[var(--color-ink)]">Groq / OpenAI Control</h3>
-          <p class="text-sm text-[var(--color-ink-muted)]">Panel AI detail akan aktif di fase D2.</p>
+          <p class="text-sm text-[var(--color-ink-muted)]">Kelola model, system prompt, fallback provider, dan pantau riwayat percakapan AI.</p>
         </div>
         <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
-          <p class="text-sm text-[var(--color-ink-muted)]">Placeholder: model, system prompt, token cap, fallback provider.</p>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman AI Reply untuk atur konfigurasi model dan validasi context history yang dipakai pipeline.</p>
+            <x-ui.button href="{{ route('ai.index') }}" variant="primary" size="sm" icon="lucide-sparkles">Buka AI Control</x-ui.button>
+          </div>
         </x-ui.card>
       </section>
 
@@ -224,10 +227,13 @@
         <div>
           <div class="eyebrow">BACKUP</div>
           <h3 class="font-display font-bold text-xl text-[var(--color-ink)]">Backup & Restore</h3>
-          <p class="text-sm text-[var(--color-ink-muted)]">Jadwal backup otomatis dipasang saat fase B5.</p>
+          <p class="text-sm text-[var(--color-ink-muted)]">Kelola trigger backup manual, inventory backup, dan aksi housekeeping artifact.</p>
         </div>
         <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
-          <p class="text-sm text-[var(--color-ink-muted)]">Placeholder: backup DB/session, retention policy, restore verification.</p>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman Backups untuk menjalankan backup DB/session dan memonitor daftar artifact terbaru.</p>
+            <x-ui.button href="{{ route('backups.index') }}" variant="primary" size="sm" icon="lucide-database-backup">Buka Backups</x-ui.button>
+          </div>
         </x-ui.card>
       </section>
 

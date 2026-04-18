@@ -9,6 +9,14 @@ use App\Http\Controllers\BusinessHoursController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\KnowledgeController;
+use App\Http\Controllers\AiController;
+use App\Http\Controllers\ChatLiveController;
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AlertController;
+use App\Http\Controllers\BackupController;
+use App\Http\Controllers\BlacklistController;
+use App\Http\Controllers\AuditController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\ApprovedSessionController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +45,42 @@ Route::middleware('auth')->group(function () {
     // Logs
     Route::get('/logs',                                [LogController::class, 'index'])->name('logs.index');
 
+    // Chat live (C3)
+    Route::get('/chat-live',                           [ChatLiveController::class, 'index'])->name('chat-live.index');
+    Route::get('/chat-live/feed',                      [ChatLiveController::class, 'feed'])->name('chat-live.feed');
+
+    // Analytics (C2)
+    Route::get('/analytics',                           [AnalyticsController::class, 'index'])->name('analytics.index');
+
+    // Alerts (C1)
+    Route::get('/alerts',                              [AlertController::class, 'index'])->name('alerts.index');
+    Route::post('/alerts/channels',                    [AlertController::class, 'storeChannel'])->middleware('role:owner,admin')->name('alerts.channels.store');
+    Route::put('/alerts/channels/{channel}',           [AlertController::class, 'updateChannel'])->middleware('role:owner,admin')->name('alerts.channels.update');
+    Route::patch('/alerts/channels/{channel}/toggle',  [AlertController::class, 'toggleChannel'])->middleware('role:owner,admin')->name('alerts.channels.toggle');
+    Route::delete('/alerts/channels/{channel}',        [AlertController::class, 'destroyChannel'])->middleware('role:owner,admin')->name('alerts.channels.destroy');
+    Route::post('/alerts/channels/{channel}/test',     [AlertController::class, 'sendTest'])->middleware('role:owner,admin')->name('alerts.channels.test');
+
+    // Backups (B5)
+    Route::get('/backups',                             [BackupController::class, 'index'])->name('backups.index');
+    Route::post('/backups/run',                        [BackupController::class, 'run'])->middleware('role:owner,admin')->name('backups.run');
+    Route::delete('/backups/{backup}',                 [BackupController::class, 'destroy'])->middleware('role:owner,admin')->name('backups.destroy');
+
+    // Blacklist
+    Route::get('/blacklist',                           [BlacklistController::class, 'index'])->name('blacklist.index');
+    Route::post('/blacklist',                          [BlacklistController::class, 'store'])->middleware('role:owner,admin')->name('blacklist.store');
+    Route::put('/blacklist/{blacklist}',               [BlacklistController::class, 'update'])->middleware('role:owner,admin')->name('blacklist.update');
+    Route::patch('/blacklist/{blacklist}/toggle',      [BlacklistController::class, 'toggle'])->middleware('role:owner,admin')->name('blacklist.toggle');
+    Route::delete('/blacklist/{blacklist}',            [BlacklistController::class, 'destroy'])->middleware('role:owner,admin')->name('blacklist.destroy');
+
+    // Audit
+    Route::get('/audit',                               [AuditController::class, 'index'])->name('audit.index');
+
+    // Users
+    Route::get('/users',                               [UserController::class, 'index'])->name('users.index');
+    Route::post('/users',                              [UserController::class, 'store'])->middleware('role:owner,admin')->name('users.store');
+    Route::put('/users/{user}',                        [UserController::class, 'update'])->middleware('role:owner,admin')->name('users.update');
+    Route::delete('/users/{user}',                     [UserController::class, 'destroy'])->middleware('role:owner,admin')->name('users.destroy');
+
     // Templates (A1 + A3)
     Route::get('/templates',                           [TemplateController::class, 'index'])->name('templates.index');
     Route::post('/templates/reply',                    [TemplateController::class, 'storeReplyTemplate'])->middleware('role:owner,admin')->name('templates.reply.store');
@@ -52,6 +96,10 @@ Route::middleware('auth')->group(function () {
     Route::put('/knowledge/{knowledgeBase}',           [KnowledgeController::class, 'update'])->middleware('role:owner,admin')->name('knowledge.update');
     Route::patch('/knowledge/{knowledgeBase}/toggle',  [KnowledgeController::class, 'toggle'])->middleware('role:owner,admin')->name('knowledge.toggle');
     Route::delete('/knowledge/{knowledgeBase}',        [KnowledgeController::class, 'destroy'])->middleware('role:owner,admin')->name('knowledge.destroy');
+
+    // AI control (D2)
+    Route::get('/ai',                                  [AiController::class, 'index'])->name('ai.index');
+    Route::post('/ai',                                 [AiController::class, 'update'])->middleware('role:owner,admin')->name('ai.update');
 
     // Webhooks & API keys (D3)
     Route::get('/webhooks',                            [WebhookController::class, 'index'])->name('webhooks.index');
