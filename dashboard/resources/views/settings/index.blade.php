@@ -210,10 +210,13 @@
         <div>
           <div class="eyebrow">WEBHOOK</div>
           <h3 class="font-display font-bold text-xl text-[var(--color-ink)]">Integrasi Outbound</h3>
-          <p class="text-sm text-[var(--color-ink-muted)]">Konfigurasi endpoint webhook & API key akan aktif di fase D3.</p>
+          <p class="text-sm text-[var(--color-ink-muted)]">Kelola endpoint webhook dan API key publik untuk integrasi eksternal.</p>
         </div>
         <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
-          <p class="text-sm text-[var(--color-ink-muted)]">Placeholder: endpoint, secret HMAC, event subscription, retry policy.</p>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman integrasi untuk create/update endpoint webhook, generate API key, dan revoke key.</p>
+            <x-ui.button href="{{ route('webhooks.index') }}" variant="primary" size="sm" icon="lucide-webhook">Buka Webhooks & API</x-ui.button>
+          </div>
         </x-ui.card>
       </section>
 

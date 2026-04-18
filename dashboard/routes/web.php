@@ -7,6 +7,7 @@ use App\Http\Controllers\LogController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\BusinessHoursController;
 use App\Http\Controllers\TemplateController;
+use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\ApprovedSessionController;
 use Illuminate\Support\Facades\Route;
@@ -43,6 +44,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/templates/reply/{replyTemplate}/default', [TemplateController::class, 'setDefaultReplyTemplate'])->middleware('role:owner,admin')->name('templates.reply.default');
     Route::post('/templates/type',                     [TemplateController::class, 'upsertMessageTypeTemplate'])->middleware('role:owner,admin')->name('templates.type.upsert');
     Route::patch('/templates/type/{messageType}/toggle', [TemplateController::class, 'toggleMessageTypeTemplate'])->middleware('role:owner,admin')->name('templates.type.toggle');
+
+    // Webhooks & API keys (D3)
+    Route::get('/webhooks',                            [WebhookController::class, 'index'])->name('webhooks.index');
+    Route::post('/webhooks/endpoints',                 [WebhookController::class, 'storeEndpoint'])->middleware('role:owner,admin')->name('webhooks.endpoints.store');
+    Route::put('/webhooks/endpoints/{endpoint}',       [WebhookController::class, 'updateEndpoint'])->middleware('role:owner,admin')->name('webhooks.endpoints.update');
+    Route::patch('/webhooks/endpoints/{endpoint}/toggle', [WebhookController::class, 'toggleEndpoint'])->middleware('role:owner,admin')->name('webhooks.endpoints.toggle');
+    Route::delete('/webhooks/endpoints/{endpoint}',    [WebhookController::class, 'destroyEndpoint'])->middleware('role:owner,admin')->name('webhooks.endpoints.destroy');
+    Route::post('/webhooks/api-keys',                  [WebhookController::class, 'storeApiKey'])->middleware('role:owner,admin')->name('webhooks.api-keys.store');
+    Route::patch('/webhooks/api-keys/{apiKey}/revoke', [WebhookController::class, 'revokeApiKey'])->middleware('role:owner,admin')->name('webhooks.api-keys.revoke');
 
     // Settings
     Route::get('/settings',                            [SettingController::class, 'index'])->name('settings.index');
