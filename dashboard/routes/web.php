@@ -8,6 +8,7 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\BusinessHoursController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\ApprovedSessionController;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +45,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/templates/reply/{replyTemplate}/default', [TemplateController::class, 'setDefaultReplyTemplate'])->middleware('role:owner,admin')->name('templates.reply.default');
     Route::post('/templates/type',                     [TemplateController::class, 'upsertMessageTypeTemplate'])->middleware('role:owner,admin')->name('templates.type.upsert');
     Route::patch('/templates/type/{messageType}/toggle', [TemplateController::class, 'toggleMessageTypeTemplate'])->middleware('role:owner,admin')->name('templates.type.toggle');
+
+    // Knowledge base (D1)
+    Route::get('/knowledge',                           [KnowledgeController::class, 'index'])->name('knowledge.index');
+    Route::post('/knowledge',                          [KnowledgeController::class, 'store'])->middleware('role:owner,admin')->name('knowledge.store');
+    Route::put('/knowledge/{knowledgeBase}',           [KnowledgeController::class, 'update'])->middleware('role:owner,admin')->name('knowledge.update');
+    Route::patch('/knowledge/{knowledgeBase}/toggle',  [KnowledgeController::class, 'toggle'])->middleware('role:owner,admin')->name('knowledge.toggle');
+    Route::delete('/knowledge/{knowledgeBase}',        [KnowledgeController::class, 'destroy'])->middleware('role:owner,admin')->name('knowledge.destroy');
 
     // Webhooks & API keys (D3)
     Route::get('/webhooks',                            [WebhookController::class, 'index'])->name('webhooks.index');
