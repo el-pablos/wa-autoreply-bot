@@ -11,10 +11,15 @@ function makeApp(router) {
 
 async function withServer(app, fn) {
   const server = await new Promise((resolve) => {
-    const s = app.listen(0, () => resolve(s));
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
   });
 
-  const { port } = server.address();
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error(`Gagal mendapatkan port test server: ${String(address)}`);
+  }
+
+  const port = Number(address.port);
   const baseUrl = `http://127.0.0.1:${port}`;
 
   try {
