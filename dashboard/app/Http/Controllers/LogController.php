@@ -12,6 +12,22 @@ class LogController extends Controller
     {
         $query = MessageLog::query();
 
+        if ($request->filled('level')) {
+            switch ($request->level) {
+                case 'info':
+                    $query->where('is_allowed', true)->where('replied', true);
+                    break;
+                case 'warn':
+                    $query->where('is_allowed', false);
+                    break;
+                case 'err':
+                    $query->where('is_allowed', true)->where('replied', false);
+                    break;
+                default:
+                    break;
+            }
+        }
+
         if ($request->filled('number')) {
             $query->where('from_number', 'like', "%{$request->number}%");
         }
