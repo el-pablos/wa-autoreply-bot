@@ -1,9 +1,18 @@
 services:
   mysql:
     ports: []   # Jangan expose port MySQL ke publik di prod
+    networks:
+      - wabot
+
+  redis:
+    ports: []   # Redis tidak perlu expose ke publik
+    networks:
+      - wabot
 
   bot:
     ports: []   # Tidak perlu expose bot port ke publik
+    networks:
+      - wabot
 
   dashboard:
     ports:
@@ -11,3 +20,21 @@ services:
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
+    networks:
+      - wabot
+
+  queue-worker:
+    environment:
+      APP_ENV: production
+    networks:
+      - wabot
+
+  scheduler:
+    environment:
+      APP_ENV: production
+    networks:
+      - wabot
+
+networks:
+  wabot:
+    driver: bridge
