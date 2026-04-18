@@ -229,10 +229,14 @@
         <div>
           <div class="eyebrow">TWO FACTOR AUTH</div>
           <h3 class="font-display font-bold text-xl text-[var(--color-ink)]">2FA TOTP</h3>
-          <p class="text-sm text-[var(--color-ink-muted)]">Wizard QR & backup code akan aktif setelah fase B3.</p>
+          <p class="text-sm text-[var(--color-ink-muted)]">Setup authenticator, verifikasi OTP, dan backup code sekarang tersedia.</p>
         </div>
+
         <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
-          <p class="text-sm text-[var(--color-ink-muted)]">Placeholder: setup authenticator, challenge step, emergency code.</p>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman khusus 2FA untuk generate QR, aktivasi, dan disable dengan verifikasi ulang.</p>
+            <x-ui.button href="{{ route('settings.2fa.index') }}" variant="primary" size="sm" icon="lucide-shield-check">Buka Pengaturan 2FA</x-ui.button>
+          </div>
         </x-ui.card>
       </section>
     </x-ui.tabs>

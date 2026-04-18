@@ -5,12 +5,15 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AllowListController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\ApprovedSessionController;
 use Illuminate\Support\Facades\Route;
 
 // Auth
 Route::get('/login',        [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login',       [AuthController::class, 'login'])->name('login.post');
+Route::get('/two-factor/challenge', [TwoFactorController::class, 'showChallenge'])->name('two-factor.challenge');
+Route::post('/two-factor/challenge', [TwoFactorController::class, 'verifyChallenge'])->name('two-factor.verify');
 Route::post('/logout',      [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
 // Protected routes
@@ -33,6 +36,10 @@ Route::middleware('auth')->group(function () {
     // Settings
     Route::get('/settings',                            [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings',                           [SettingController::class, 'update'])->middleware('role:owner,admin')->name('settings.update');
+    Route::get('/settings/2fa',                        [TwoFactorController::class, 'index'])->name('settings.2fa.index');
+    Route::post('/settings/2fa/setup',                 [TwoFactorController::class, 'setup'])->name('settings.2fa.setup');
+    Route::post('/settings/2fa/enable',                [TwoFactorController::class, 'enable'])->name('settings.2fa.enable');
+    Route::post('/settings/2fa/disable',               [TwoFactorController::class, 'disable'])->name('settings.2fa.disable');
 
     // Approved sessions
     Route::get('/approved-sessions',                   [ApprovedSessionController::class, 'index'])->name('approved.index');
