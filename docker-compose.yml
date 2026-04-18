@@ -22,6 +22,29 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - wabot
+
+  # Redis untuk cache, session, dan queue
+  redis:
+    image: redis:7-alpine
+    container_name: wa-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:-secret}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-secret}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - wabot
 
   bot:
     build:
@@ -40,6 +63,7 @@ services:
       BOT_PORT: 3001
       NODE_ENV: production
       LOG_LEVEL: info
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-change-me}
     ports:
       - "3001:3001"
     depends_on:
@@ -51,6 +75,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    networks:
+      - wabot
 
   dashboard:
     build:
@@ -70,13 +96,20 @@ services:
       DB_DATABASE: wabot
       DB_USERNAME: wabot
       DB_PASSWORD: ${DB_PASSWORD}
-      SESSION_DRIVER: file
-      CACHE_DRIVER: file
+      SESSION_DRIVER: redis
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-secret}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-change-me}
     ports:
       - "8002:80"
     depends_on:
       mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/login"]
@@ -84,9 +117,90 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    networks:
+      - wabot
+
+  # Worker untuk proses antrian Laravel (notifikasi, export, dll)
+  queue-worker:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: wa-queue-worker
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: wabot
+      DB_USERNAME: wabot
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-secret}
+      QUEUE_CONNECTION: redis
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+    command: php artisan queue:work redis --sleep=3 --tries=3 --timeout=120 --max-jobs=1000 --max-time=3600
+    volumes:
+      - dashboard_storage:/var/www/html/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "queue:work"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - wabot
+
+  # Scheduler untuk artisan schedule:run setiap menit
+  scheduler:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: wa-scheduler
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: wabot
+      DB_USERNAME: wabot
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-secret}
+      QUEUE_CONNECTION: redis
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+    command: sh -c "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
+    volumes:
+      - dashboard_storage:/var/www/html/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wabot
 
 volumes:
   mysql_data:
     driver: local
+  redis_data:
+    driver: local
   bot_auth:
     driver: local
+  dashboard_storage:
+    driver: local
+
+networks:
+  wabot:
+    driver: bridge
