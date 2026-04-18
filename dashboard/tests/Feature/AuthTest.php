@@ -10,7 +10,7 @@ class AuthTest extends TestCase
     {
         $response = $this->get('/login');
         $response->assertStatus(200);
-        $response->assertSee('WA Bot Monitor');
+        $response->assertSeeText("Operator's Console");
     }
 
     public function test_redirect_to_login_when_not_authenticated(): void
