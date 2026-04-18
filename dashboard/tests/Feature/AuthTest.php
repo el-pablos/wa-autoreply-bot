@@ -2,10 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_login_page_accessible(): void
     {
         $response = $this->get('/login');
@@ -19,27 +24,50 @@ class AuthTest extends TestCase
         $response->assertRedirect('/login');
     }
 
-    public function test_login_with_correct_password(): void
+    public function test_login_with_correct_credentials(): void
     {
-        config(['app.dashboard_password' => 'testpassword123']);
+        $user = User::factory()->create([
+            'email' => 'owner@local.test',
+            'password' => Hash::make('testpassword123'),
+            'role' => 'owner',
+        ]);
 
-        $response = $this->post('/login', ['password' => 'testpassword123']);
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'testpassword123',
+        ]);
+
         $response->assertRedirect('/');
+        $this->assertAuthenticatedAs($user);
     }
 
-    public function test_login_with_wrong_password(): void
+    public function test_login_with_wrong_credentials(): void
     {
-        config(['app.dashboard_password' => 'testpassword123']);
+        User::factory()->create([
+            'email' => 'owner@local.test',
+            'password' => Hash::make('testpassword123'),
+            'role' => 'owner',
+        ]);
 
-        $response = $this->post('/login', ['password' => 'wrongpassword']);
+        $response = $this->post('/login', [
+            'email' => 'owner@local.test',
+            'password' => 'wrongpassword',
+        ]);
+
         $response->assertRedirect();
-        $response->assertSessionHasErrors('password');
+        $response->assertSessionHasErrors('email');
     }
 
     public function test_logout_clears_session(): void
     {
-        $this->withSession(['authenticated' => true]);
+        $user = User::factory()->create([
+            'role' => 'owner',
+        ]);
+        $this->actingAs($user);
+
         $response = $this->post('/logout');
+
         $response->assertRedirect('/login');
+        $this->assertGuest();
     }
 }

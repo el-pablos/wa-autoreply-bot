@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AllowedNumber;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -10,20 +11,24 @@ class AllowListTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsAuth()
+    private function actingAsRole(string $role = 'owner')
     {
-        return $this->withSession(['authenticated' => true]);
+        $user = User::factory()->create([
+            'role' => $role,
+        ]);
+
+        return $this->actingAs($user);
     }
 
     public function test_allowlist_index_accessible(): void
     {
-        $response = $this->actingAsAuth()->get('/allowlist');
+        $response = $this->actingAsRole()->get('/allowlist');
         $response->assertStatus(200);
     }
 
     public function test_can_store_new_number(): void
     {
-        $response = $this->actingAsAuth()->post('/allowlist', [
+        $response = $this->actingAsRole()->post('/allowlist', [
             'phone_number' => '628123456789',
             'label'        => 'Test',
             'is_active'    => 1,
@@ -35,7 +40,7 @@ class AllowListTest extends TestCase
 
     public function test_can_store_number_with_plus_62_and_normalize_to_62(): void
     {
-        $response = $this->actingAsAuth()->post('/allowlist', [
+        $response = $this->actingAsRole()->post('/allowlist', [
             'phone_number' => '+628123456789',
             'label'        => 'Plus62',
             'is_active'    => 1,
@@ -47,7 +52,7 @@ class AllowListTest extends TestCase
 
     public function test_can_store_number_with_08_and_normalize_to_62(): void
     {
-        $response = $this->actingAsAuth()->post('/allowlist', [
+        $response = $this->actingAsRole()->post('/allowlist', [
             'phone_number' => '08123456789',
             'label'        => 'Zero8',
             'is_active'    => 1,
@@ -59,7 +64,7 @@ class AllowListTest extends TestCase
 
     public function test_invalid_phone_format_rejected(): void
     {
-        $response = $this->actingAsAuth()->post('/allowlist', [
+        $response = $this->actingAsRole()->post('/allowlist', [
             'phone_number' => 'abc123', // format salah
         ]);
         $response->assertSessionHasErrors('phone_number');
@@ -67,7 +72,7 @@ class AllowListTest extends TestCase
 
     public function test_noisy_phone_format_rejected(): void
     {
-        $response = $this->actingAsAuth()->post('/allowlist', [
+        $response = $this->actingAsRole()->post('/allowlist', [
             'phone_number' => '+62 812-3456-789',
         ]);
 
@@ -78,7 +83,7 @@ class AllowListTest extends TestCase
     {
         AllowedNumber::create(['phone_number' => '628111111111', 'is_active' => true]);
 
-        $response = $this->actingAsAuth()->post('/allowlist', [
+        $response = $this->actingAsRole()->post('/allowlist', [
             'phone_number' => '628111111111',
         ]);
         $response->assertSessionHasErrors('phone_number');
@@ -88,7 +93,7 @@ class AllowListTest extends TestCase
     {
         AllowedNumber::create(['phone_number' => '628111111111', 'is_active' => true]);
 
-        $response = $this->actingAsAuth()->post('/allowlist', [
+        $response = $this->actingAsRole()->post('/allowlist', [
             'phone_number' => '08111111111',
         ]);
 
@@ -99,7 +104,7 @@ class AllowListTest extends TestCase
     {
         $number = AllowedNumber::create(['phone_number' => '628999999999', 'is_active' => true]);
 
-        $response = $this->actingAsAuth()->delete("/allowlist/{$number->id}");
+        $response = $this->actingAsRole()->delete("/allowlist/{$number->id}");
         $response->assertRedirect('/allowlist');
         $this->assertDatabaseMissing('allowed_numbers', ['phone_number' => '628999999999']);
     }
@@ -108,7 +113,19 @@ class AllowListTest extends TestCase
     {
         $number = AllowedNumber::create(['phone_number' => '628555555555', 'is_active' => true]);
 
-        $this->actingAsAuth()->patch("/allowlist/{$number->id}/toggle");
+        $this->actingAsRole()->patch("/allowlist/{$number->id}/toggle");
         $this->assertDatabaseHas('allowed_numbers', ['phone_number' => '628555555555', 'is_active' => false]);
+    }
+
+    public function test_viewer_cannot_store_number(): void
+    {
+        $response = $this->actingAsRole('viewer')->post('/allowlist', [
+            'phone_number' => '628123456789',
+            'label' => 'ViewerTest',
+            'is_active' => 1,
+        ]);
+
+        $response->assertForbidden();
+        $this->assertDatabaseMissing('allowed_numbers', ['phone_number' => '628123456789']);
     }
 }

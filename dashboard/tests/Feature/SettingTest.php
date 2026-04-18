@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BotSetting;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -10,14 +11,18 @@ class SettingTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsAuth()
+    private function actingAsRole(string $role = 'owner')
     {
-        return $this->withSession(['authenticated' => true]);
+        $user = User::factory()->create([
+            'role' => $role,
+        ]);
+
+        return $this->actingAs($user);
     }
 
     public function test_settings_page_accessible(): void
     {
-        $response = $this->actingAsAuth()->get('/settings');
+        $response = $this->actingAsRole()->get('/settings');
         $response->assertStatus(200);
     }
 
@@ -28,7 +33,7 @@ class SettingTest extends TestCase
         BotSetting::create(['key' => 'auto_reply_enabled', 'value' => 'false']);
         BotSetting::create(['key' => 'ignore_groups',      'value' => 'false']);
 
-        $response = $this->actingAsAuth()->post('/settings', [
+        $response = $this->actingAsRole()->post('/settings', [
             'reply_message'      => 'Pesan baru dari test',
             'reply_delay_ms'     => 2000,
             'auto_reply_enabled' => 'true',
@@ -43,10 +48,22 @@ class SettingTest extends TestCase
 
     public function test_empty_reply_message_rejected(): void
     {
-        $response = $this->actingAsAuth()->post('/settings', [
+        $response = $this->actingAsRole()->post('/settings', [
             'reply_message'  => '',
             'reply_delay_ms' => 1000,
         ]);
         $response->assertSessionHasErrors('reply_message');
+    }
+
+    public function test_viewer_cannot_update_settings(): void
+    {
+        $response = $this->actingAsRole('viewer')->post('/settings', [
+            'reply_message' => 'Tidak boleh',
+            'reply_delay_ms' => 1200,
+            'auto_reply_enabled' => 'true',
+            'ignore_groups' => 'true',
+        ]);
+
+        $response->assertForbidden();
     }
 }

@@ -55,11 +55,22 @@
                 <div class="text-center mb-6">
                     <div class="eyebrow">SIGN IN</div>
                     <h1 class="font-display font-extrabold text-3xl text-[var(--color-ink)] mt-1">Masuk</h1>
-                    <p class="display-italic text-sm mt-1">Masukkan password operator untuk lanjut</p>
+                    <p class="display-italic text-sm mt-1">Masukkan email dan password operator untuk lanjut</p>
                 </div>
 
                 <form action="{{ route('login.post') }}" method="POST" class="space-y-4">
                     @csrf
+
+                    <x-ui.input
+                        name="email"
+                        type="email"
+                        label="Email"
+                        placeholder="owner@local.test"
+                        :value="old('email')"
+                        :error="$errors->first('email')"
+                        required
+                        autofocus
+                    />
 
                     <x-ui.input
                         name="password"
@@ -68,8 +79,12 @@
                         placeholder="••••••••"
                         :error="$errors->first('password')"
                         required
-                        autofocus
                     />
+
+                    <label class="inline-flex items-center gap-2 text-sm text-[var(--color-ink-muted)]">
+                        <input type="checkbox" name="remember" value="1" class="rounded border-[var(--color-rule)]">
+                        <span>Ingat sesi login ini</span>
+                    </label>
 
                     <x-ui.button type="submit" variant="primary" size="lg" block>
                         Masuk →
@@ -78,7 +93,7 @@
 
                 <div class="mt-6 pt-4 border-t border-[var(--color-rule)] text-center">
                     <div class="eyebrow">PROTECTED BY</div>
-                    <div class="text-xs font-mono text-[var(--color-ink-muted)] mt-1">simple.auth · CSRF · session</div>
+                    <div class="text-xs font-mono text-[var(--color-ink-muted)] mt-1">laravel.auth · CSRF · session</div>
                 </div>
             </x-ui.card>
         </div>

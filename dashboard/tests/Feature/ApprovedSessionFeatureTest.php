@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ApprovedSession;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -10,9 +11,13 @@ class ApprovedSessionFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsAuth()
+    private function actingAsRole(string $role = 'owner')
     {
-        return $this->withSession(['authenticated' => true]);
+        $user = User::factory()->create([
+            'role' => $role,
+        ]);
+
+        return $this->actingAs($user);
     }
 
     public function test_index_redirects_to_login_when_not_authenticated(): void
@@ -42,7 +47,7 @@ class ApprovedSessionFeatureTest extends TestCase
             'approved_by' => 'admin',
         ]);
 
-        $response = $this->actingAsAuth()->get('/approved-sessions');
+        $response = $this->actingAsRole()->get('/approved-sessions');
 
         $response->assertOk();
         $response->assertSee('Sesi Aktif');
@@ -62,7 +67,7 @@ class ApprovedSessionFeatureTest extends TestCase
             'approved_by' => 'admin',
         ]);
 
-        $response = $this->actingAsAuth()->post("/approved-sessions/{$session->id}/revoke");
+        $response = $this->actingAsRole()->post("/approved-sessions/{$session->id}/revoke");
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
@@ -84,10 +89,27 @@ class ApprovedSessionFeatureTest extends TestCase
             'approved_by' => 'admin',
         ]);
 
-        $response = $this->actingAsAuth()->post("/approved-sessions/{$session->id}/revoke");
+        $response = $this->actingAsRole()->post("/approved-sessions/{$session->id}/revoke");
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
         $this->assertNull($session->fresh()->revoked_at);
+    }
+
+    public function test_viewer_cannot_revoke_session(): void
+    {
+        $session = ApprovedSession::create([
+            'phone_number' => '628111100005',
+            'approved_at' => now()->subMinutes(10),
+            'last_activity_at' => now()->subMinute(),
+            'expires_at' => now()->addHour(),
+            'is_active' => true,
+            'approved_by' => 'admin',
+        ]);
+
+        $response = $this->actingAsRole('viewer')->post("/approved-sessions/{$session->id}/revoke");
+
+        $response->assertForbidden();
+        $this->assertTrue((bool) $session->fresh()?->is_active);
     }
 }
