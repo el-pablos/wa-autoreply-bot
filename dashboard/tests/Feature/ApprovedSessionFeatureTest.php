@@ -75,6 +75,7 @@ class ApprovedSessionFeatureTest extends TestCase
             'id' => $session->id,
             'is_active' => false,
         ]);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'approved_session.revoked']);
         $this->assertNotNull($session->fresh()->revoked_at);
     }
 
@@ -111,5 +112,6 @@ class ApprovedSessionFeatureTest extends TestCase
 
         $response->assertForbidden();
         $this->assertTrue((bool) $session->fresh()?->is_active);
+        $this->assertDatabaseMissing('activity_logs', ['action' => 'approved_session.revoked']);
     }
 }

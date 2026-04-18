@@ -39,6 +39,10 @@ class AuthTest extends TestCase
 
         $response->assertRedirect('/');
         $this->assertAuthenticatedAs($user);
+        $this->assertDatabaseHas('activity_logs', [
+            'actor' => $user->email,
+            'action' => 'auth.login',
+        ]);
     }
 
     public function test_login_with_wrong_credentials(): void
@@ -56,6 +60,10 @@ class AuthTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHasErrors('email');
+        $this->assertDatabaseHas('activity_logs', [
+            'actor' => 'guest:owner@local.test',
+            'action' => 'auth.login_failed',
+        ]);
     }
 
     public function test_logout_clears_session(): void
@@ -69,5 +77,9 @@ class AuthTest extends TestCase
 
         $response->assertRedirect('/login');
         $this->assertGuest();
+        $this->assertDatabaseHas('activity_logs', [
+            'actor' => $user->email,
+            'action' => 'auth.logout',
+        ]);
     }
 }

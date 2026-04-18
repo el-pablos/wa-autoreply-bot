@@ -36,6 +36,7 @@ class AllowListTest extends TestCase
 
         $response->assertRedirect('/allowlist');
         $this->assertDatabaseHas('allowed_numbers', ['phone_number' => '628123456789']);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'allowlist.created']);
     }
 
     public function test_can_store_number_with_plus_62_and_normalize_to_62(): void
@@ -107,6 +108,7 @@ class AllowListTest extends TestCase
         $response = $this->actingAsRole()->delete("/allowlist/{$number->id}");
         $response->assertRedirect('/allowlist');
         $this->assertDatabaseMissing('allowed_numbers', ['phone_number' => '628999999999']);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'allowlist.deleted']);
     }
 
     public function test_can_toggle_active_status(): void
@@ -115,6 +117,7 @@ class AllowListTest extends TestCase
 
         $this->actingAsRole()->patch("/allowlist/{$number->id}/toggle");
         $this->assertDatabaseHas('allowed_numbers', ['phone_number' => '628555555555', 'is_active' => false]);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'allowlist.toggled']);
     }
 
     public function test_viewer_cannot_store_number(): void
@@ -127,5 +130,6 @@ class AllowListTest extends TestCase
 
         $response->assertForbidden();
         $this->assertDatabaseMissing('allowed_numbers', ['phone_number' => '628123456789']);
+        $this->assertDatabaseMissing('activity_logs', ['action' => 'allowlist.created']);
     }
 }

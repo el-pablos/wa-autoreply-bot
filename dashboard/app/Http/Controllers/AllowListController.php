@@ -4,6 +4,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AllowedNumber;
+use App\Support\AuditTrail;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
@@ -40,7 +41,15 @@ class AllowListController extends Controller
     {
         $data = $this->validateAndNormalize($request);
 
-        AllowedNumber::create($data);
+        $created = AllowedNumber::create($data);
+
+        AuditTrail::record(
+            $request,
+            'allowlist.created',
+            $created,
+            null,
+            $created->only(['phone_number', 'label', 'is_active'])
+        );
 
         return redirect()->route('allowlist.index')
             ->with('success', "Nomor {$data['phone_number']} berhasil ditambahkan!");
@@ -53,27 +62,56 @@ class AllowListController extends Controller
 
     public function update(Request $request, AllowedNumber $allowlist)
     {
+        $old = $allowlist->only(['phone_number', 'label', 'is_active']);
         $data = $this->validateAndNormalize($request, $allowlist);
 
         $allowlist->update($data);
+
+        AuditTrail::record(
+            $request,
+            'allowlist.updated',
+            $allowlist,
+            $old,
+            $allowlist->fresh()?->only(['phone_number', 'label', 'is_active'])
+        );
 
         return redirect()->route('allowlist.index')
             ->with('success', 'Nomor berhasil diperbarui!');
     }
 
-    public function destroy(AllowedNumber $allowlist)
+    public function destroy(Request $request, AllowedNumber $allowlist)
     {
+        $old = $allowlist->only(['phone_number', 'label', 'is_active']);
         $number = $allowlist->phone_number;
+        $target = ['type' => $allowlist::class, 'id' => $allowlist->id];
+
         $allowlist->delete();
+
+        AuditTrail::record(
+            $request,
+            'allowlist.deleted',
+            $target,
+            $old,
+            null
+        );
 
         return redirect()->route('allowlist.index')
             ->with('success', "Nomor {$number} berhasil dihapus!");
     }
 
-    public function toggleActive(AllowedNumber $allowlist)
+    public function toggleActive(Request $request, AllowedNumber $allowlist)
     {
+        $old = ['is_active' => $allowlist->is_active];
         $allowlist->update(['is_active' => !$allowlist->is_active]);
         $status = $allowlist->is_active ? 'diaktifkan' : 'dinonaktifkan';
+
+        AuditTrail::record(
+            $request,
+            'allowlist.toggled',
+            $allowlist,
+            $old,
+            ['is_active' => $allowlist->is_active]
+        );
 
         return redirect()->route('allowlist.index')
             ->with('success', "Nomor {$allowlist->phone_number} berhasil {$status}!");

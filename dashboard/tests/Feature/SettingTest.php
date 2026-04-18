@@ -44,6 +44,7 @@ class SettingTest extends TestCase
         $this->assertDatabaseHas('bot_settings', [
             'key' => 'reply_message', 'value' => 'Pesan baru dari test',
         ]);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'settings.updated']);
     }
 
     public function test_empty_reply_message_rejected(): void
@@ -65,5 +66,6 @@ class SettingTest extends TestCase
         ]);
 
         $response->assertForbidden();
+        $this->assertDatabaseMissing('activity_logs', ['action' => 'settings.updated']);
     }
 }

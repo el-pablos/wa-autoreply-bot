@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ApprovedSession;
+use App\Support\AuditTrail;
+use Illuminate\Http\Request;
 
 class ApprovedSessionController extends Controller
 {
@@ -25,7 +27,7 @@ class ApprovedSessionController extends Controller
         return view('approved.index', compact('activeSessions', 'historySessions'));
     }
 
-    public function revoke(int $id)
+    public function revoke(Request $request, int $id)
     {
         $session = ApprovedSession::find($id);
 
@@ -37,10 +39,19 @@ class ApprovedSessionController extends Controller
             return redirect()->back()->with('error', 'Sesi sudah tidak aktif atau sudah kedaluwarsa.');
         }
 
+        $old = $session->only(['is_active', 'revoked_at', 'phone_number', 'expires_at']);
         $session->update([
             'is_active' => false,
             'revoked_at' => now(),
         ]);
+
+        AuditTrail::record(
+            $request,
+            'approved_session.revoked',
+            $session,
+            $old,
+            $session->fresh()?->only(['is_active', 'revoked_at', 'phone_number', 'expires_at'])
+        );
 
         return redirect()->back()->with('success', "Sesi {$session->phone_number} berhasil dicabut.");
     }
