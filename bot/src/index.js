@@ -9,18 +9,56 @@ import express from 'express';
 import QRCode from 'qrcode';
 import { config }                  from './config.js';
 import { logger }                  from './utils/logger.js';
-import { updateBotStatus, getPool } from './db.js';
+import {
+  updateBotStatus,
+  getPool,
+  getSetting,
+  getSettingsByKeys,
+  verifyApiKey,
+  upsertAllowListEntry,
+  getMessageLogs,
+} from './db.js';
 import { routeCommand }            from './handlers/commandHandler.js';
 import { handleIncomingMessage }   from './handlers/messageHandler.js';
 import { startScheduler, stopScheduler } from './utils/scheduler.js';
+import { createInternalApiRouter } from './api/internal.js';
+import { createPublicApiRouter } from './api/public.js';
 
 let qrCodeDataURL = null;
 let connectionStatus = 'disconnected';
+let activeSock = null;
 
 // ─────────────────────────────────────────────
 // HTTP Server (untuk QR code & health check)
 // ─────────────────────────────────────────────
 const app = express();
+app.use(express.json({ limit: '1mb' }));
+
+app.use(
+  '/internal',
+  createInternalApiRouter({
+    getSock: () => activeSock,
+    logger,
+    sharedSecret: process.env.INTERNAL_SECRET,
+    db: {
+      getSetting,
+      getSettingsByKeys,
+    },
+  }),
+);
+
+app.use(
+  '/api',
+  createPublicApiRouter({
+    getSock: () => activeSock,
+    logger,
+    db: {
+      verifyApiKey,
+      upsertAllowListEntry,
+      getMessageLogs,
+    },
+  }),
+);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', botStatus: connectionStatus, timestamp: new Date().toISOString() });
@@ -108,6 +146,7 @@ async function connectToWhatsApp() {
     logger:          logger.child({ module: 'baileys' }),
     browser:         ['WA Bot', 'Chrome', '1.0.0'],
   });
+  activeSock = sock;
 
   // Simpan credential setiap update
   sock.ev.on('creds.update', saveCreds);
@@ -140,6 +179,7 @@ async function connectToWhatsApp() {
 
     if (connection === 'close') {
       connectionStatus = 'offline';
+      activeSock = null;
       await updateBotStatus('offline').catch(() => {});
 
       const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
