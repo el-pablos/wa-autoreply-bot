@@ -6,6 +6,7 @@ import {
   refreshApprovedSession,
   saveMessageLog,
 } from '../db.js';
+import { publishMessageReceived, publishReplySent } from '../utils/eventBus.js';
 
 export function normalizePhoneNumber(rawJid = '') {
   const base   = String(rawJid).trim().split('@')[0].split(':')[0];
@@ -149,6 +150,15 @@ export async function handleIncomingMessage(sock, msg) {
     'Diagnostik resolusi sender'
   );
 
+  publishMessageReceived({
+    phoneNumber: senderRef,
+    messageText,
+    messageType,
+    groupId,
+    isAllowed: false,
+    replied: false,
+  });
+
   // Ambil semua setting sekaligus (parallel query)
   const [autoReplyEnabled, ignoreGroups, replyMessage, replyDelayMs] = await Promise.all([
     getSetting('auto_reply_enabled'),
@@ -204,6 +214,11 @@ export async function handleIncomingMessage(sock, msg) {
       await sock.sendMessage(remoteJid, { text: replyText });
       replied = true;
       logger.info({ to: phoneNumber }, 'Auto-reply terkirim');
+      publishReplySent({
+        to: remoteJid,
+        phoneNumber: senderRef,
+        replyText,
+      });
     } catch (err) {
       logger.error({ err, to: phoneNumber }, 'Gagal kirim auto-reply');
     }
