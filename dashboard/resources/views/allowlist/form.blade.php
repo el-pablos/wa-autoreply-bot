@@ -1,43 +1,96 @@
 @extends('layouts.app')
-@section('title', isset($number) && $number ? 'Edit Nomor' : 'Tambah Nomor')
-@section('page-title', isset($number) && $number ? 'Edit Nomor' : 'Tambah Nomor')
+
+@php
+    $isEdit = isset($number) && $number;
+    $pageTitle = $isEdit ? 'Edit Nomor' : 'Tambah Nomor';
+    $pageEyebrow = $isEdit ? 'EDIT RECORD' : 'NEW RECORD';
+    $navActive = 'allowlist';
+@endphp
 
 @section('content')
-<div class="card" style="max-width:480px">
-  <form action="{{ $number ? route('allowlist.update', $number) : route('allowlist.store') }}" method="POST">
-    @csrf
-    @if($number) @method('PUT') @endif
+<div class="max-w-2xl mx-auto md:mx-0 space-y-5">
 
-    <div class="form-group">
-      <label>Nomor WhatsApp <span style="color:#f85149">*</span></label>
-      <input type="text" name="phone_number" value="{{ old('phone_number', $number?->phone_number) }}"
-             class="form-control {{ $errors->has('phone_number') ? 'is-invalid' : '' }}"
-             placeholder="+628123456789 / 628123456789 / 08123456789">
-      @error('phone_number')
-        <small style="color:#f85149;font-size:.8rem">{{ $message }}</small>
-      @enderror
-      <small style="color:#8b949e;font-size:.8rem">Cukup input nomor WhatsApp asli: +62..., 62..., atau 08... (hanya angka, tanpa spasi/simbol lain). Sistem akan otomatis menyimpan ke format 62xxxx.</small>
+    {{-- Breadcrumb / back --}}
+    <div class="flex items-center gap-2">
+        <x-ui.button :href="route('allowlist.index')" variant="ghost" size="sm" icon="lucide-arrow-left">Kembali ke Allow-list</x-ui.button>
     </div>
 
-    <div class="form-group">
-      <label>Label / Nama <small style="color:#8b949e">(opsional)</small></label>
-      <input type="text" name="label" value="{{ old('label', $number?->label) }}"
-             class="form-control" placeholder="Contoh: Teman Kantor">
+    {{-- Header --}}
+    <div>
+        <div class="eyebrow">{{ $isEdit ? 'EDITORIAL UPDATE' : 'EDITORIAL INTAKE' }}</div>
+        <h2 class="font-display font-extrabold text-2xl md:text-3xl text-[var(--color-ink)]">
+            {{ $isEdit ? 'Ubah Nomor ' . $number->phone_number : 'Tambah Nomor Baru' }}
+        </h2>
+        <p class="display-italic text-sm">
+            {{ $isEdit ? 'Perbarui label atau status aktif untuk nomor ini.' : 'Masukkan nomor WhatsApp yang akan menerima auto-reply dari bot.' }}
+        </p>
     </div>
 
-    <div class="form-group" style="display:flex;align-items:center;gap:.75rem">
-      <input type="checkbox" name="is_active" id="is_active" value="1"
-             {{ old('is_active', $number ? ($number->is_active ? '1' : '') : '1') == '1' ? 'checked' : '' }}
-             style="width:16px;height:16px;accent-color:var(--accent)">
-      <label for="is_active" style="margin-bottom:0;cursor:pointer">Aktif (akan mendapat auto-reply)</label>
-    </div>
+    {{-- Form --}}
+    <x-ui.card editorial padding="lg">
+        <form action="{{ $isEdit ? route('allowlist.update', $number) : route('allowlist.store') }}" method="POST" class="space-y-5">
+            @csrf
+            @if ($isEdit) @method('PUT') @endif
 
-    <div style="display:flex;gap:.75rem;margin-top:1.25rem">
-      <button type="submit" class="btn btn-primary">
-        {{ $number ? '💾 Simpan Perubahan' : '+ Tambah Nomor' }}
-      </button>
-      <a href="{{ route('allowlist.index') }}" class="btn btn-ghost">Batal</a>
-    </div>
-  </form>
+            <x-ui.input
+                name="phone_number"
+                id="phone_number"
+                label="Nomor WhatsApp"
+                type="text"
+                :value="old('phone_number', $number?->phone_number)"
+                placeholder="+628123456789 / 628123456789 / 08123456789"
+                :error="$errors->first('phone_number')"
+                hint="Format diterima: +62..., 62..., atau 08... (angka saja). Sistem akan normalisasi ke 62xxxx."
+                required
+                mono
+                prefix="WA"
+            />
+
+            <x-ui.input
+                name="label"
+                id="label"
+                label="Label / Nama"
+                type="text"
+                :value="old('label', $number?->label)"
+                placeholder="Contoh: Teman Kantor"
+                :error="$errors->first('label')"
+                hint="Opsional — memudahkan identifikasi di daftar."
+            />
+
+            <div class="pt-2 border-t border-[var(--color-rule)]">
+                <x-ui.toggle
+                    name="is_active"
+                    id="is_active"
+                    label="Status aktif"
+                    description="Nomor aktif akan menerima auto-reply dari bot."
+                    :checked="old('is_active', $isEdit ? (bool) $number->is_active : true)"
+                    value="1"
+                />
+            </div>
+
+            <div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-3 border-t border-[var(--color-ink)]">
+                <x-ui.button :href="route('allowlist.index')" variant="ghost" size="md">Batal</x-ui.button>
+                <x-ui.button type="submit" variant="primary" size="md" :icon="$isEdit ? 'lucide-save' : 'lucide-plus'">
+                    {{ $isEdit ? 'Simpan Perubahan' : 'Tambah Nomor' }}
+                </x-ui.button>
+            </div>
+        </form>
+    </x-ui.card>
+
+    {{-- Helper note --}}
+    @unless ($isEdit)
+        <x-ui.card padding="md" class="bg-[var(--color-brass-50)]">
+            <div class="flex items-start gap-3">
+                <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-card)] border border-[var(--color-brass)] text-[var(--color-brass-700)] shrink-0">
+                    @svg('lucide-info', 'w-4 h-4')
+                </span>
+                <div class="text-sm text-[var(--color-ink)]">
+                    <div class="eyebrow mb-1">TIPS REDAKSI</div>
+                    <p>Gunakan nomor WA aktif. Nomor duplikat akan ditolak. Sistem menyimpan dalam format 62xxxx tanpa tanda + atau spasi.</p>
+                </div>
+            </div>
+        </x-ui.card>
+    @endunless
+
 </div>
 @endsection
