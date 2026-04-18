@@ -23,6 +23,26 @@ const {
   revokeApprovedSession,
   expireStaleSessions,
   getActiveApprovedSessions,
+  getActiveTemplate,
+  getBusinessHourSchedules,
+  getActiveOofSchedules,
+  getMessageTypeTemplates,
+  getBlacklistEntry,
+  saveRateLimitViolation,
+  getKnowledgeBaseEntries,
+  incrementKnowledgeMatch,
+  saveAiConversationTurn,
+  getRecentConversationHistory,
+  pruneConversationHistory,
+  getActiveWebhookEndpoints,
+  createWebhookDeliveryLog,
+  updateWebhookDeliveryLog,
+  touchWebhookEndpoint,
+  saveEscalationLog,
+  verifyApiKey,
+  upsertAllowListEntry,
+  getMessageLogs,
+  getSettingsByKeys,
 } = await import('../src/db.js');
 
 describe('db — getSetting', () => {
@@ -157,5 +177,150 @@ describe('db — approved sessions', () => {
   test('getActiveApprovedSessions return list sesi aktif', async () => {
     mockExecute.mockResolvedValueOnce([[{ id: 1, phone_number: '6281' }]]);
     await expect(getActiveApprovedSessions()).resolves.toEqual([{ id: 1, phone_number: '6281' }]);
+  });
+});
+
+describe('db — template/schedule helpers', () => {
+  beforeEach(() => mockExecute.mockReset());
+
+  test('getActiveTemplate return linked template jika ada', async () => {
+    mockExecute
+      .mockResolvedValueOnce([[{ id: 1, body: 'template linked' }]])
+      .mockResolvedValueOnce([[{ id: 9, body: 'template default' }]]);
+
+    await expect(getActiveTemplate('6281')).resolves.toEqual({ id: 1, body: 'template linked' });
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+  });
+
+  test('getActiveTemplate fallback ke default jika linked tidak ada', async () => {
+    mockExecute
+      .mockResolvedValueOnce([[]])
+      .mockResolvedValueOnce([[{ id: 9, body: 'template default' }]]);
+
+    await expect(getActiveTemplate('6281')).resolves.toEqual({ id: 9, body: 'template default' });
+    expect(mockExecute).toHaveBeenCalledTimes(2);
+  });
+
+  test('getBusinessHourSchedules/getActiveOofSchedules/getMessageTypeTemplates', async () => {
+    mockExecute
+      .mockResolvedValueOnce([[{ weekday: 1 }]])
+      .mockResolvedValueOnce([[{ id: 2 }]])
+      .mockResolvedValueOnce([[{ message_type: 'text' }]]);
+
+    await expect(getBusinessHourSchedules()).resolves.toEqual([{ weekday: 1 }]);
+    await expect(getActiveOofSchedules('2026-04-20')).resolves.toEqual([{ id: 2 }]);
+    await expect(getMessageTypeTemplates()).resolves.toEqual([{ message_type: 'text' }]);
+  });
+});
+
+describe('db — anti-spam/kb/history helpers', () => {
+  beforeEach(() => mockExecute.mockReset());
+
+  test('getBlacklistEntry return null jika tidak ada', async () => {
+    mockExecute.mockResolvedValueOnce([[]]);
+    await expect(getBlacklistEntry('6281')).resolves.toBeNull();
+  });
+
+  test('saveRateLimitViolation return insertId', async () => {
+    mockExecute.mockResolvedValueOnce([{ insertId: 77 }]);
+    await expect(
+      saveRateLimitViolation({ phoneNumber: '6281', windowStart: new Date(), messageCount: 9 })
+    ).resolves.toBe(77);
+  });
+
+  test('knowledge base read + increment', async () => {
+    mockExecute
+      .mockResolvedValueOnce([[{ id: 1, answer: 'ok' }]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    await expect(getKnowledgeBaseEntries()).resolves.toEqual([{ id: 1, answer: 'ok' }]);
+    await expect(incrementKnowledgeMatch(1)).resolves.toBe(true);
+  });
+
+  test('AI history helpers', async () => {
+    mockExecute
+      .mockResolvedValueOnce([{ insertId: 11 }])
+      .mockResolvedValueOnce([[{ id: 1, content: 'halo' }]])
+      .mockResolvedValueOnce([{ affectedRows: 4 }]);
+
+    await expect(
+      saveAiConversationTurn({ phoneNumber: '6281', role: 'user', content: 'halo', tokens: 12 })
+    ).resolves.toBe(11);
+    await expect(getRecentConversationHistory('6281', { limit: 5 })).resolves.toEqual([
+      { id: 1, content: 'halo' },
+    ]);
+    await expect(pruneConversationHistory(new Date())).resolves.toBe(4);
+  });
+});
+
+describe('db — webhook/api helpers', () => {
+  beforeEach(() => mockExecute.mockReset());
+
+  test('getActiveWebhookEndpoints by event', async () => {
+    mockExecute.mockResolvedValueOnce([[{ id: 1, url: 'https://hook' }]]);
+    await expect(getActiveWebhookEndpoints('reply_sent')).resolves.toEqual([
+      { id: 1, url: 'https://hook' },
+    ]);
+    expect(mockExecute).toHaveBeenCalledWith(
+      expect.stringContaining('JSON_CONTAINS'),
+      ['reply_sent']
+    );
+  });
+
+  test('webhook log create/update/touch endpoint', async () => {
+    mockExecute
+      .mockResolvedValueOnce([{ insertId: 91 }])
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    await expect(
+      createWebhookDeliveryLog({ endpointId: 1, event: 'x', payload: { a: 1 } })
+    ).resolves.toBe(91);
+    await expect(
+      updateWebhookDeliveryLog(91, { status: 'success', responseCode: 200, attempts: 1 })
+    ).resolves.toBe(true);
+    await expect(touchWebhookEndpoint(1)).resolves.toBe(true);
+  });
+
+  test('saveEscalationLog return insertId', async () => {
+    mockExecute.mockResolvedValueOnce([{ insertId: 12 }]);
+    await expect(
+      saveEscalationLog({
+        fromNumber: '6281',
+        triggerReason: 'komplain',
+        escalatedTo: '6289',
+        messageSnippet: 'tolong',
+      })
+    ).resolves.toBe(12);
+  });
+
+  test('verifyApiKey return row + update last_used_at', async () => {
+    mockExecute
+      .mockResolvedValueOnce([[{ id: 1, name: 'integration', scopes: null }]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    const row = await verifyApiKey('plain-key');
+    expect(row).toEqual({ id: 1, name: 'integration', scopes: null });
+    expect(mockExecute).toHaveBeenCalledTimes(2);
+
+    const hashArg = mockExecute.mock.calls[0][1][0];
+    expect(hashArg).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  test('upsertAllowListEntry, getMessageLogs, getSettingsByKeys', async () => {
+    mockExecute
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([[{ id: 1 }]])
+      .mockResolvedValueOnce([[{ key: 'auto_reply_enabled', value: 'true' }]]);
+
+    await expect(
+      upsertAllowListEntry({ phoneNumber: '6281', label: 'VIP', isActive: true })
+    ).resolves.toBe(true);
+    await expect(getMessageLogs({ fromNumber: '6281', limit: 10, offset: 0 })).resolves.toEqual([
+      { id: 1 },
+    ]);
+    await expect(getSettingsByKeys(['auto_reply_enabled'])).resolves.toEqual([
+      { key: 'auto_reply_enabled', value: 'true' },
+    ]);
   });
 });
