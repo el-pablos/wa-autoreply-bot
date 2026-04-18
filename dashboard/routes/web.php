@@ -6,6 +6,7 @@ use App\Http\Controllers\AllowListController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\BusinessHoursController;
+use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\ApprovedSessionController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +34,15 @@ Route::middleware('auth')->group(function () {
 
     // Logs
     Route::get('/logs',                                [LogController::class, 'index'])->name('logs.index');
+
+    // Templates (A1 + A3)
+    Route::get('/templates',                           [TemplateController::class, 'index'])->name('templates.index');
+    Route::post('/templates/reply',                    [TemplateController::class, 'storeReplyTemplate'])->middleware('role:owner,admin')->name('templates.reply.store');
+    Route::put('/templates/reply/{replyTemplate}',     [TemplateController::class, 'updateReplyTemplate'])->middleware('role:owner,admin')->name('templates.reply.update');
+    Route::delete('/templates/reply/{replyTemplate}',  [TemplateController::class, 'destroyReplyTemplate'])->middleware('role:owner,admin')->name('templates.reply.destroy');
+    Route::post('/templates/reply/{replyTemplate}/default', [TemplateController::class, 'setDefaultReplyTemplate'])->middleware('role:owner,admin')->name('templates.reply.default');
+    Route::post('/templates/type',                     [TemplateController::class, 'upsertMessageTypeTemplate'])->middleware('role:owner,admin')->name('templates.type.upsert');
+    Route::patch('/templates/type/{messageType}/toggle', [TemplateController::class, 'toggleMessageTypeTemplate'])->middleware('role:owner,admin')->name('templates.type.toggle');
 
     // Settings
     Route::get('/settings',                            [SettingController::class, 'index'])->name('settings.index');

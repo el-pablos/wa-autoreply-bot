@@ -57,6 +57,21 @@
                 hint="Opsional — memudahkan identifikasi di daftar."
             />
 
+            <x-ui.select
+                name="template_id"
+                id="template_id"
+                label="Reply Template"
+                :error="$errors->first('template_id')"
+                hint="Kosongkan untuk pakai template default global."
+            >
+                <option value="" @if (old('template_id', $number?->template_id) === null || old('template_id', $number?->template_id) === '') selected @endif>Gunakan template default</option>
+                @foreach (($templates ?? collect()) as $template)
+                    <option value="{{ $template['id'] }}" @if ((string) old('template_id', $number?->template_id) === (string) $template['id']) selected @endif>
+                        {{ $template['label'] }}
+                    </option>
+                @endforeach
+            </x-ui.select>
+
             <div class="pt-2 border-t border-[var(--color-rule)]">
                 <x-ui.toggle
                     name="is_active"

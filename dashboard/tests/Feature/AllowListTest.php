@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AllowedNumber;
+use App\Models\ReplyTemplate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -37,6 +38,29 @@ class AllowListTest extends TestCase
         $response->assertRedirect('/allowlist');
         $this->assertDatabaseHas('allowed_numbers', ['phone_number' => '628123456789']);
         $this->assertDatabaseHas('activity_logs', ['action' => 'allowlist.created']);
+    }
+
+    public function test_can_store_number_with_specific_reply_template(): void
+    {
+        $template = ReplyTemplate::query()->create([
+            'name' => 'Template VIP',
+            'body' => 'Halo {{nama}}, ini jalur VIP.',
+            'is_default' => false,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAsRole()->post('/allowlist', [
+            'phone_number' => '628100000001',
+            'label' => 'VIP',
+            'template_id' => $template->id,
+            'is_active' => 1,
+        ]);
+
+        $response->assertRedirect('/allowlist');
+        $this->assertDatabaseHas('allowed_numbers', [
+            'phone_number' => '628100000001',
+            'template_id' => $template->id,
+        ]);
     }
 
     public function test_can_store_number_with_plus_62_and_normalize_to_62(): void
@@ -99,6 +123,17 @@ class AllowListTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('phone_number');
+    }
+
+    public function test_unknown_template_id_rejected(): void
+    {
+        $response = $this->actingAsRole()->post('/allowlist', [
+            'phone_number' => '6281222333444',
+            'template_id' => 999999,
+            'is_active' => 1,
+        ]);
+
+        $response->assertSessionHasErrors('template_id');
     }
 
     public function test_can_delete_number(): void

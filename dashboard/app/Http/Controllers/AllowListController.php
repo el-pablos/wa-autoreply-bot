@@ -4,6 +4,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AllowedNumber;
+use App\Models\ReplyTemplate;
 use App\Support\AuditTrail;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -34,7 +35,10 @@ class AllowListController extends Controller
 
     public function create()
     {
-        return view('allowlist.form', ['number' => null]);
+        return view('allowlist.form', [
+            'number' => null,
+            'templates' => $this->templateOptions(),
+        ]);
     }
 
     public function store(Request $request)
@@ -48,7 +52,7 @@ class AllowListController extends Controller
             'allowlist.created',
             $created,
             null,
-            $created->only(['phone_number', 'label', 'is_active'])
+            $created->only(['phone_number', 'label', 'template_id', 'is_active'])
         );
 
         return redirect()->route('allowlist.index')
@@ -57,12 +61,15 @@ class AllowListController extends Controller
 
     public function edit(AllowedNumber $allowlist)
     {
-        return view('allowlist.form', ['number' => $allowlist]);
+        return view('allowlist.form', [
+            'number' => $allowlist,
+            'templates' => $this->templateOptions(),
+        ]);
     }
 
     public function update(Request $request, AllowedNumber $allowlist)
     {
-        $old = $allowlist->only(['phone_number', 'label', 'is_active']);
+        $old = $allowlist->only(['phone_number', 'label', 'template_id', 'is_active']);
         $data = $this->validateAndNormalize($request, $allowlist);
 
         $allowlist->update($data);
@@ -72,7 +79,7 @@ class AllowListController extends Controller
             'allowlist.updated',
             $allowlist,
             $old,
-            $allowlist->fresh()?->only(['phone_number', 'label', 'is_active'])
+            $allowlist->fresh()?->only(['phone_number', 'label', 'template_id', 'is_active'])
         );
 
         return redirect()->route('allowlist.index')
@@ -122,6 +129,7 @@ class AllowListController extends Controller
         $data = $request->validate([
             'phone_number' => ['required', 'string', 'regex:/^(\+62|62|08)[0-9]{7,13}$/'],
             'label' => 'nullable|string|max:100',
+            'template_id' => ['nullable', 'integer', Rule::exists('reply_templates', 'id')],
             'is_active' => 'boolean',
         ], [
             'phone_number.regex' => 'Nomor WA harus diawali +62, 62, atau 08 dan hanya berisi angka.',
@@ -154,5 +162,27 @@ class AllowListController extends Controller
         }
 
         return $phoneNumber;
+    }
+
+    private function templateOptions()
+    {
+        return ReplyTemplate::query()
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get(['id', 'name', 'is_default', 'is_active'])
+            ->map(function (ReplyTemplate $template) {
+                $label = $template->name;
+                if ($template->is_default) {
+                    $label .= ' [DEFAULT]';
+                }
+                if (!$template->is_active) {
+                    $label .= ' [NONAKTIF]';
+                }
+
+                return [
+                    'id' => $template->id,
+                    'label' => $label,
+                ];
+            });
     }
 }
