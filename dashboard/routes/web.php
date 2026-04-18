@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AllowListController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\BusinessHoursController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\ApprovedSessionController;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,8 @@ Route::middleware('auth')->group(function () {
     // Settings
     Route::get('/settings',                            [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings',                           [SettingController::class, 'update'])->middleware('role:owner,admin')->name('settings.update');
+    Route::get('/business-hours',                      [BusinessHoursController::class, 'index'])->name('business-hours.index');
+    Route::post('/business-hours',                     [BusinessHoursController::class, 'update'])->middleware('role:owner,admin')->name('business-hours.update');
     Route::get('/settings/2fa',                        [TwoFactorController::class, 'index'])->name('settings.2fa.index');
     Route::post('/settings/2fa/setup',                 [TwoFactorController::class, 'setup'])->name('settings.2fa.setup');
     Route::post('/settings/2fa/enable',                [TwoFactorController::class, 'enable'])->name('settings.2fa.enable');

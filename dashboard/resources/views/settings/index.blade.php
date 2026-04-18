@@ -154,10 +154,13 @@
         <div>
           <div class="eyebrow">SCHEDULE</div>
           <h3 class="font-display font-bold text-xl text-[var(--color-ink)]">Business Hours</h3>
-          <p class="text-sm text-[var(--color-ink-muted)]">Panel jadwal detail akan aktif setelah fitur A2 dirilis.</p>
+          <p class="text-sm text-[var(--color-ink-muted)]">Kelola jam operasional mingguan, timezone, outside-hours message, dan jadwal OoF.</p>
         </div>
         <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
-          <p class="text-sm text-[var(--color-ink-muted)]">Placeholder: konfigurasi jam kerja dan out-of-office message.</p>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman khusus untuk setup jadwal per hari + override OoF yang dipakai langsung oleh pipeline bot.</p>
+            <x-ui.button href="{{ route('business-hours.index') }}" variant="primary" size="sm" icon="lucide-clock-3">Buka Business Hours</x-ui.button>
+          </div>
         </x-ui.card>
       </section>
 
