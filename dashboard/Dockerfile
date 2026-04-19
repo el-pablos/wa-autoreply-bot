@@ -64,6 +64,10 @@ RUN mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions 
 
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
+RUN npm ci --no-audit --no-fund && \
+    npm run build && \
+    rm -rf node_modules
+
 RUN cp .env.example .env && \
     php artisan key:generate
 
