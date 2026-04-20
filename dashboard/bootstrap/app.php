@@ -19,10 +19,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 Request::HEADER_X_FORWARDED_PORT |
                 Request::HEADER_X_FORWARDED_PROTO
         );
-
-        $middleware->alias([
-            'role' => \App\Http\Middleware\CheckRole::class,
-        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
