@@ -71,7 +71,7 @@
       <div>
         <div class="eyebrow">CONFIGURATION</div>
         <h2 class="font-display font-extrabold text-2xl text-[var(--color-ink)]">Control Center</h2>
-        <p class="display-italic text-sm">General, balasan, anti-spam, AI, webhook, backup, dan 2FA.</p>
+        <p class="display-italic text-sm">General, balasan, anti-spam, dan jadwal operasional.</p>
       </div>
     </x-slot:header>
     <x-slot:headerActions>
@@ -82,14 +82,10 @@
 
     <x-ui.tabs
       :tabs="[
-        ['key' => 'general', 'label' => 'General'],
-        ['key' => 'reply', 'label' => 'Reply'],
-        ['key' => 'schedule', 'label' => 'Schedule'],
-        ['key' => 'anti-spam', 'label' => 'Anti-Spam'],
-        ['key' => 'ai', 'label' => 'AI'],
-        ['key' => 'webhook', 'label' => 'Webhook'],
-        ['key' => 'backup', 'label' => 'Backup'],
-        ['key' => 'two-fa', 'label' => '2FA'],
+        ['key' => 'general',    'label' => 'General'],
+        ['key' => 'reply',      'label' => 'Reply'],
+        ['key' => 'schedule',   'label' => 'Schedule'],
+        ['key' => 'anti-spam',  'label' => 'Anti-Spam'],
       ]"
       storage="settings-active-tab"
     >
@@ -201,62 +197,6 @@
         </label>
       </section>
 
-      <section x-show="active === 'ai'" class="space-y-3" style="display: none;">
-        <div>
-          <div class="eyebrow">AI REPLY</div>
-          <h3 class="font-display font-bold text-xl text-[var(--color-ink)]">Groq / OpenAI Control</h3>
-          <p class="text-sm text-[var(--color-ink-muted)]">Kelola model, system prompt, fallback provider, dan pantau riwayat percakapan AI.</p>
-        </div>
-        <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman AI Reply untuk atur konfigurasi model dan validasi context history yang dipakai pipeline.</p>
-            <x-ui.button href="{{ route('ai.index') }}" variant="primary" size="sm" icon="lucide-sparkles">Buka AI Control</x-ui.button>
-          </div>
-        </x-ui.card>
-      </section>
-
-      <section x-show="active === 'webhook'" class="space-y-3" style="display: none;">
-        <div>
-          <div class="eyebrow">WEBHOOK</div>
-          <h3 class="font-display font-bold text-xl text-[var(--color-ink)]">Integrasi Outbound</h3>
-          <p class="text-sm text-[var(--color-ink-muted)]">Kelola endpoint webhook dan API key publik untuk integrasi eksternal.</p>
-        </div>
-        <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman integrasi untuk create/update endpoint webhook, generate API key, dan revoke key.</p>
-            <x-ui.button href="{{ route('webhooks.index') }}" variant="primary" size="sm" icon="lucide-webhook" class="whitespace-nowrap shrink-0">Buka Webhooks & API</x-ui.button>
-          </div>
-        </x-ui.card>
-      </section>
-
-      <section x-show="active === 'backup'" class="space-y-3" style="display: none;">
-        <div>
-          <div class="eyebrow">BACKUP</div>
-          <h3 class="font-display font-bold text-xl text-[var(--color-ink)]">Backup & Restore</h3>
-          <p class="text-sm text-[var(--color-ink-muted)]">Kelola trigger backup manual, inventory backup, dan aksi housekeeping artifact.</p>
-        </div>
-        <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman Backups untuk menjalankan backup DB/session dan memonitor daftar artifact terbaru.</p>
-            <x-ui.button href="{{ route('backups.index') }}" variant="primary" size="sm" icon="lucide-database-backup">Buka Backups</x-ui.button>
-          </div>
-        </x-ui.card>
-      </section>
-
-      <section x-show="active === 'two-fa'" class="space-y-3" style="display: none;">
-        <div>
-          <div class="eyebrow">TWO FACTOR AUTH</div>
-          <h3 class="font-display font-bold text-xl text-[var(--color-ink)]">2FA TOTP</h3>
-          <p class="text-sm text-[var(--color-ink-muted)]">Setup authenticator, verifikasi OTP, dan backup code sekarang tersedia.</p>
-        </div>
-
-        <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman khusus 2FA untuk generate QR, aktivasi, dan disable dengan verifikasi ulang.</p>
-            <x-ui.button href="{{ route('settings.2fa.index') }}" variant="primary" size="sm" icon="lucide-shield-check" class="whitespace-nowrap shrink-0">Buka Pengaturan 2FA</x-ui.button>
-          </div>
-        </x-ui.card>
-      </section>
     </x-ui.tabs>
   </x-ui.card>
 
