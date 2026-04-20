@@ -47,22 +47,6 @@ class AuthController extends Controller
 
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
-        if ($user && $user->two_factor_enabled && $user->totp_secret) {
-            $request->session()->put('2fa_pending_user_id', $user->id);
-            $request->session()->put('2fa_pending_remember', $remember);
-
-            AuditTrail::record(
-                $request,
-                'auth.2fa_challenge_required',
-                $user,
-                null,
-                ['email' => $user->email, 'role' => $user->role]
-            );
-
-            Auth::logout();
-
-            return redirect()->route('two-factor.challenge');
-        }
 
         if ($user) {
             $user->forceFill([
@@ -74,7 +58,7 @@ class AuthController extends Controller
                 'auth.login',
                 $user,
                 null,
-                ['email' => $user->email, 'role' => $user->role]
+                ['email' => $user->email]
             );
         }
 
@@ -91,7 +75,7 @@ class AuthController extends Controller
                 'auth.logout',
                 $user,
                 null,
-                ['email' => $user->email, 'role' => $user->role]
+                ['email' => $user->email]
             );
         }
 
