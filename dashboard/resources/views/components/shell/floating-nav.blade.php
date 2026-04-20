@@ -5,27 +5,21 @@
 @php
     // Bottom-pill nav: 4 slot utama + 1 slot "Lainnya" buka drawer.
     $primary = [
-        ['key' => 'dashboard', 'label' => 'Home', 'route' => 'dashboard', 'pattern' => 'dashboard*'],
-        ['key' => 'allowlist', 'label' => 'List', 'route' => 'allowlist.index', 'pattern' => 'allowlist*'],
-        ['key' => 'approved', 'label' => 'Sess', 'route' => 'approved.index', 'pattern' => 'approved*'],
-        ['key' => 'chat-live', 'label' => 'Chat', 'route' => 'chat-live.index', 'pattern' => 'chat-live*'],
+        ['key' => 'dashboard', 'label' => 'Home',     'route' => 'dashboard',      'pattern' => 'dashboard*'],
+        ['key' => 'allowlist', 'label' => 'List',     'route' => 'allowlist.index', 'pattern' => 'allowlist*'],
+        ['key' => 'chat-live', 'label' => 'Chat',     'route' => 'chat-live.index', 'pattern' => 'chat-live*'],
+        ['key' => 'settings',  'label' => 'Settings', 'route' => 'settings.index',  'pattern' => 'settings*'],
     ];
 
     $more = [
-        ['key' => 'logs', 'label' => 'Logs', 'route' => 'logs.index'],
-        ['key' => 'analytics', 'label' => 'Analytics', 'route' => 'analytics.index'],
-        ['key' => 'audit', 'label' => 'Audit Trail', 'route' => 'audit.index'],
-        ['key' => 'templates', 'label' => 'Templates', 'route' => 'templates.index'],
-        ['key' => 'knowledge', 'label' => 'Knowledge Base', 'route' => 'knowledge.index'],
-        ['key' => 'ai', 'label' => 'AI Reply', 'route' => 'ai.index'],
+        ['key' => 'logs',           'label' => 'Logs',           'route' => 'logs.index'],
+        ['key' => 'approved',       'label' => 'Approved',       'route' => 'approved.index'],
+        ['key' => 'analytics',      'label' => 'Analytics',      'route' => 'analytics.index'],
+        ['key' => 'audit',          'label' => 'Audit Trail',    'route' => 'audit.index'],
+        ['key' => 'templates',      'label' => 'Templates',      'route' => 'templates.index'],
         ['key' => 'business-hours', 'label' => 'Business Hours', 'route' => 'business-hours.index'],
-        ['key' => 'webhooks', 'label' => 'Webhooks & API', 'route' => 'webhooks.index'],
-        ['key' => 'escalation', 'label' => 'Escalation', 'route' => 'escalation.index'],
-        ['key' => 'blacklist', 'label' => 'Blacklist', 'route' => 'blacklist.index'],
-        ['key' => 'backups', 'label' => 'Backups', 'route' => 'backups.index'],
-        ['key' => 'alerts', 'label' => 'Alerts', 'route' => 'alerts.index'],
-        ['key' => 'users', 'label' => 'Users', 'route' => 'users.index'],
-        ['key' => 'settings', 'label' => 'Settings', 'route' => 'settings.index'],
+        ['key' => 'blacklist',      'label' => 'Blacklist',      'route' => 'blacklist.index'],
+        ['key' => 'alerts',         'label' => 'Alerts',         'route' => 'alerts.index'],
     ];
 
     $hasRoute = fn (?string $name): bool => $name !== null && \Illuminate\Support\Facades\Route::has($name);
