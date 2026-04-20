@@ -3,9 +3,8 @@
  *
  * Dipakai oleh:
  *   - Pipeline pesan masuk: publish `message_received`, `reply_sent`,
- *     `escalation_triggered`, `blacklist_hit`, `rate_limit_hit`.
+ *     `blacklist_hit`, `rate_limit_hit`.
  *   - SSE feed (`GET /internal/sse-feed`) yang stream event ke dashboard.
- *   - Webhook dispatcher (opsional, bisa subscribe ke event tertentu).
  *
  * Event bus sengaja tanpa payload schema ketat supaya consumer di dashboard
  * bisa render apapun. Tetapi helper `publishMessageReceived` menyiapkan
@@ -15,11 +14,8 @@ import { EventEmitter } from "node:events";
 
 export const EVENT_MESSAGE_RECEIVED = "message_received";
 export const EVENT_REPLY_SENT = "reply_sent";
-export const EVENT_ESCALATION = "escalation_triggered";
 export const EVENT_BLACKLIST_HIT = "blacklist_hit";
 export const EVENT_RATE_LIMIT_HIT = "rate_limit_hit";
-export const EVENT_AI_REPLY = "ai_reply_generated";
-export const EVENT_WEBHOOK_DISPATCHED = "webhook_dispatched";
 
 // Emitter diekspor agar consumer bisa attach listener mereka sendiri
 // (mis. integration tests). Default maxListeners dinaikkan agar SSE multi-tab
@@ -59,18 +55,6 @@ export function publishReplySent(payload) {
 }
 
 /**
- * Publish event `escalation_triggered`.
- * @param {Object} payload
- */
-export function publishEscalation(payload) {
-  eventBus.emit(EVENT_ESCALATION, {
-    type: EVENT_ESCALATION,
-    timestamp: new Date().toISOString(),
-    ...payload,
-  });
-}
-
-/**
  * Subscribe ke semua event untuk keperluan SSE feed.
  * Callback dipanggil untuk setiap event dengan signature `(eventName, payload)`.
  * Return function unsubscribe.
@@ -86,11 +70,8 @@ export function subscribeSSE(callback) {
   const events = [
     EVENT_MESSAGE_RECEIVED,
     EVENT_REPLY_SENT,
-    EVENT_ESCALATION,
     EVENT_BLACKLIST_HIT,
     EVENT_RATE_LIMIT_HIT,
-    EVENT_AI_REPLY,
-    EVENT_WEBHOOK_DISPATCHED,
   ];
 
   const handlers = events.map((evt) => {
