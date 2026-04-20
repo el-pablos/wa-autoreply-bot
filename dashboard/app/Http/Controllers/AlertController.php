@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\AlertChannel;
 use App\Models\AlertHistory;
+use App\Models\MessageLog;
 use App\Support\AuditTrail;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AlertController extends Controller
@@ -145,5 +147,25 @@ class AlertController extends Controller
         );
 
         return redirect()->route('alerts.index')->with('success', 'Test alert berhasil dikirim (simulasi).');
+    }
+
+    public function reportData(): JsonResponse
+    {
+        $totalMessages = MessageLog::count();
+        $todayMessages = MessageLog::whereDate('created_at', today())->count();
+        $activeChannels = AlertChannel::where('is_active', true)->count();
+
+        $recentHistory = AlertHistory::with('channel')
+            ->latest()
+            ->take(5)
+            ->get(['id', 'channel_id', 'severity', 'message', 'success', 'created_at']);
+
+        return response()->json([
+            'total_messages' => $totalMessages,
+            'today_messages' => $todayMessages,
+            'active_channels' => $activeChannels,
+            'recent_alerts' => $recentHistory,
+            'generated_at' => now()->toISOString(),
+        ]);
     }
 }

@@ -46,6 +46,7 @@ Route::middleware('auth')->group(function () {
 
     // Alerts
     Route::get('/alerts',                             [AlertController::class, 'index'])->name('alerts.index');
+    Route::get('/alerts/report-data',                 [AlertController::class, 'reportData'])->name('alerts.report-data');
     Route::post('/alerts/channels',                   [AlertController::class, 'storeChannel'])->name('alerts.channels.store');
     Route::put('/alerts/channels/{channel}',          [AlertController::class, 'updateChannel'])->name('alerts.channels.update');
     Route::patch('/alerts/channels/{channel}/toggle', [AlertController::class, 'toggleChannel'])->name('alerts.channels.toggle');
