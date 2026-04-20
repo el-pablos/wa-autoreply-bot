@@ -86,8 +86,6 @@ export function createInternalApiRouter(deps = {}) {
           'reply_message',
           'reply_delay_ms',
           'business_hours_enabled',
-          'ai_reply_enabled',
-          'webhook_enabled',
           'rate_limit_enabled',
         ];
 

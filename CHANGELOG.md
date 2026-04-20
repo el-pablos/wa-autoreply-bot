@@ -11,40 +11,23 @@ halaman **Releases** di GitHub — file ini menyimpan highlight rilis utama saja
 
 ### Ditambahkan
 
-- Design system **Paper Editorial** (light editorial, hard shadow, serif-first) —
-  mobile-first dengan top bar + floating pill nav.
-- Library komponen Blade UI di `resources/views/components/ui/` (22 komponen:
-  atoms / molecules / overlays / data).
-- Pipeline pesan bot 18-langkah (blacklist → rate-limit → flow → knowledge base →
-  AI reply → typing simulation → webhook dispatch → SSE feed → escalation check).
-- 19 fitur baru tersebar di 5 grup: Quick Wins (template dinamis, business hours,
-  multi-template per jenis pesan), Security (audit trail, multi-user RBAC, 2FA,
-  rate limit + anti-spam, backup otomatis), Observability (alerting, analytics
-  mendalam, chat viewer SSE), Intelligence (knowledge base FAQ matcher, AI smart
-  reply Groq/OpenAI, webhook outbound + REST API, smart escalation), UX Polish
-  (export CSV/PDF, PWA, onboarding wizard, Redis cache + queue worker).
-- Workflow CI/CD baru: auto release dengan semantic versioning, changelog
-  otomatis per kategori, push Docker image ke GHCR tiap push ke `main`.
-- Dokumentasi:
-  - Spec design: `docs/superpowers/specs/2026-04-17-dashboard-refresh-and-feature-expansion-design.md`
-  - Implementation plan: `docs/superpowers/plans/2026-04-17-dashboard-refresh-and-feature-expansion.md`
+- Integrasi alert report Gmail via EmailJS di halaman alerts dashboard.
+- Validasi channel alert dipersempit ke email saja (target wajib format email valid).
+- Test suite dashboard disederhanakan ke mode single-operator (tanpa role/RBAC).
+- Test suite bot ditulis ulang mengikuti pipeline aktual tanpa modul AI/FAQ/webhook/escalation.
 
 ### Diubah
 
-- `layouts/app.blade.php` sekarang menggunakan Blade shell components alih-alih
-  inline CSS — semua halaman ikut konsisten.
-- 7 halaman existing (login, dashboard, allowlist, logs, settings, approved
-  sessions) di-refactor ke Paper Editorial mobile-first.
-- Auth diganti dari single-password `SimpleAuthMiddleware` ke Laravel Auth +
-  Role-Based Access Control (owner / admin / viewer).
+- Public API bot (`/api`) dinonaktifkan dari runtime.
+- Seeder dashboard dibersihkan dari key/kolom yang sudah tidak dipakai
+  (`role`, `two_factor_enabled`, `ai_*`, `webhook_enabled`, `escalation_enabled`).
+- Dependensi 2FA Laravel dan SDK AI (OpenAI/Groq) dihapus dari dependency aktif.
 
 ### Diperbaiki
 
-- `.gitignore` sekarang mengizinkan dokumentasi di folder `docs/**/*.md` dan
-  file utama seperti `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE.md`,
-  `CODE_OF_CONDUCT.md`.
-- `storage/framework/views` tidak lagi bikin bootstrap error pertama kali
-  clone karena auto-created oleh setup script + CI pipeline.
+- Konsistensi test terhadap skema users tanpa kolom `role`.
+- Drift antara kode aktif dan test legacy untuk fitur yang sudah dihapus.
+- Workflow backup terjadwal dihapus agar sesuai scope produk saat ini.
 
 ## [1.x] — Sebelumnya
 

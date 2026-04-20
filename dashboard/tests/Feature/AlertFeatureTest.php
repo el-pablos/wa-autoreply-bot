@@ -11,36 +11,33 @@ class AlertFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsRole(string $role = 'owner')
+    private function actingAsUser()
     {
-        $user = User::factory()->create([
-            'role' => $role,
-        ]);
+        $user = User::factory()->create();
 
         return $this->actingAs($user);
     }
 
     public function test_alerts_index_accessible(): void
     {
-        $response = $this->actingAsRole()->get('/alerts');
+        $response = $this->actingAsUser()->get('/alerts');
 
         $response->assertOk();
         $response->assertSee('Alert Channels');
     }
 
-    public function test_owner_can_create_alert_channel(): void
+    public function test_can_create_email_alert_channel(): void
     {
-        $response = $this->actingAsRole('owner')->post('/alerts/channels', [
-            'type' => 'wa',
-            'target' => '628111111111',
+        $response = $this->actingAsUser()->post('/alerts/channels', [
+            'target' => 'owner@gmail.com',
             'is_active' => 'true',
         ]);
 
         $response->assertRedirect('/alerts');
 
         $this->assertDatabaseHas('alert_channels', [
-            'type' => 'wa',
-            'target' => '628111111111',
+            'type' => 'email',
+            'target' => 'owner@gmail.com',
             'is_active' => true,
         ]);
 
@@ -57,7 +54,7 @@ class AlertFeatureTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->actingAsRole('owner')->post("/alerts/channels/{$channel->id}/test");
+        $response = $this->actingAsUser()->post("/alerts/channels/{$channel->id}/test");
 
         $response->assertRedirect('/alerts');
 
@@ -72,32 +69,27 @@ class AlertFeatureTest extends TestCase
         ]);
     }
 
-    public function test_owner_can_toggle_alert_channel(): void
+    public function test_can_toggle_alert_channel(): void
     {
         $channel = AlertChannel::query()->create([
-            'type' => 'wa',
-            'target' => '628111111111',
+            'type' => 'email',
+            'target' => 'owner@gmail.com',
             'is_active' => true,
         ]);
 
-        $response = $this->actingAsRole('owner')->patch("/alerts/channels/{$channel->id}/toggle");
+        $response = $this->actingAsUser()->patch("/alerts/channels/{$channel->id}/toggle");
 
         $response->assertRedirect('/alerts');
 
         $this->assertFalse((bool) $channel->fresh()?->is_active);
     }
 
-    public function test_viewer_cannot_mutate_alert_channels(): void
+    public function test_invalid_email_target_rejected(): void
     {
-        $response = $this->actingAsRole('viewer')->post('/alerts/channels', [
-            'type' => 'wa',
-            'target' => '628999999999',
+        $response = $this->actingAsUser()->post('/alerts/channels', [
+            'target' => 'not-an-email',
         ]);
 
-        $response->assertForbidden();
-
-        $this->assertDatabaseMissing('alert_channels', [
-            'target' => '628999999999',
-        ]);
+        $response->assertSessionHasErrors('target');
     }
 }

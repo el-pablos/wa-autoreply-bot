@@ -14,15 +14,11 @@ import {
   getPool,
   getSetting,
   getSettingsByKeys,
-  verifyApiKey,
-  upsertAllowListEntry,
-  getMessageLogs,
 } from './db.js';
 import { routeCommand }            from './handlers/commandHandler.js';
 import { handleIncomingMessage }   from './handlers/messageHandler.js';
 import { startScheduler, stopScheduler } from './utils/scheduler.js';
 import { createInternalApiRouter } from './api/internal.js';
-import { createPublicApiRouter } from './api/public.js';
 
 let qrCodeDataURL = null;
 let connectionStatus = 'disconnected';
@@ -43,19 +39,6 @@ app.use(
     db: {
       getSetting,
       getSettingsByKeys,
-    },
-  }),
-);
-
-app.use(
-  '/api',
-  createPublicApiRouter({
-    getSock: () => activeSock,
-    logger,
-    db: {
-      verifyApiKey,
-      upsertAllowListEntry,
-      getMessageLogs,
     },
   }),
 );

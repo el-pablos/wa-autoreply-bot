@@ -13,18 +13,16 @@ class BusinessHoursSettingTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsRole(string $role = 'owner')
+    private function actingAsUser()
     {
-        $user = User::factory()->create([
-            'role' => $role,
-        ]);
+        $user = User::factory()->create();
 
         return $this->actingAs($user);
     }
 
     public function test_business_hours_page_accessible(): void
     {
-        $response = $this->actingAsRole()->get('/business-hours');
+        $response = $this->actingAsUser()->get('/business-hours');
 
         $response->assertOk();
         $response->assertSee('Jadwal Operasional Mingguan');
@@ -35,7 +33,7 @@ class BusinessHoursSettingTest extends TestCase
         BotSetting::setValue('business_hours_enabled', 'false');
         BotSetting::setValue('oof_enabled', 'false');
 
-        $response = $this->actingAsRole('owner')->post('/business-hours', [
+        $response = $this->actingAsUser()->post('/business-hours', [
             'business_hours_enabled' => 'true',
             'oof_enabled' => 'true',
             'timezone' => 'Asia/Jakarta',
@@ -86,7 +84,7 @@ class BusinessHoursSettingTest extends TestCase
 
     public function test_invalid_schedule_end_time_rejected(): void
     {
-        $response = $this->actingAsRole('owner')->post('/business-hours', [
+        $response = $this->actingAsUser()->post('/business-hours', [
             'business_hours_enabled' => 'true',
             'oof_enabled' => 'false',
             'timezone' => 'Asia/Jakarta',
@@ -108,7 +106,7 @@ class BusinessHoursSettingTest extends TestCase
 
     public function test_oof_enabled_without_schedule_payload_is_rejected_when_no_active_oof(): void
     {
-        $response = $this->actingAsRole('owner')->post('/business-hours', [
+        $response = $this->actingAsUser()->post('/business-hours', [
             'business_hours_enabled' => 'true',
             'oof_enabled' => 'true',
             'timezone' => 'Asia/Jakarta',
@@ -128,31 +126,6 @@ class BusinessHoursSettingTest extends TestCase
         $this->assertDatabaseCount('oof_schedules', 0);
     }
 
-    public function test_viewer_cannot_update_business_hours(): void
-    {
-        $response = $this->actingAsRole('viewer')->post('/business-hours', [
-            'business_hours_enabled' => 'true',
-            'oof_enabled' => 'false',
-            'timezone' => 'Asia/Jakarta',
-            'outside_business_hours_message' => 'Tutup dulu.',
-            'schedule' => [
-                1 => ['enabled' => '1', 'start_time' => '09:00', 'end_time' => '17:00'],
-                2 => ['enabled' => '0', 'start_time' => '09:00', 'end_time' => '17:00'],
-                3 => ['enabled' => '0', 'start_time' => '09:00', 'end_time' => '17:00'],
-                4 => ['enabled' => '0', 'start_time' => '09:00', 'end_time' => '17:00'],
-                5 => ['enabled' => '0', 'start_time' => '09:00', 'end_time' => '17:00'],
-                6 => ['enabled' => '0', 'start_time' => '09:00', 'end_time' => '17:00'],
-                7 => ['enabled' => '0', 'start_time' => '09:00', 'end_time' => '17:00'],
-            ],
-        ]);
-
-        $response->assertForbidden();
-        $this->assertDatabaseCount('business_hour_schedules', 0);
-        $this->assertDatabaseMissing('activity_logs', [
-            'action' => 'settings.business_hours_updated',
-        ]);
-    }
-
     public function test_oof_can_be_disabled_and_existing_active_entries_deactivated(): void
     {
         OofSchedule::query()->create([
@@ -162,7 +135,7 @@ class BusinessHoursSettingTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->actingAsRole('owner')->post('/business-hours', [
+        $response = $this->actingAsUser()->post('/business-hours', [
             'business_hours_enabled' => 'false',
             'oof_enabled' => 'false',
             'timezone' => 'Asia/Jakarta',

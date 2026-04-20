@@ -11,18 +11,16 @@ class ChatLiveFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsRole(string $role = 'owner')
+    private function actingAsUser()
     {
-        $user = User::factory()->create([
-            'role' => $role,
-        ]);
+        $user = User::factory()->create();
 
         return $this->actingAs($user);
     }
 
     public function test_chat_live_index_accessible(): void
     {
-        $response = $this->actingAsRole()->get('/chat-live');
+        $response = $this->actingAsUser()->get('/chat-live');
 
         $response->assertOk();
         $response->assertSee('Live Incoming Stream');
@@ -50,7 +48,7 @@ class ChatLiveFeatureTest extends TestCase
             'received_at' => now(),
         ]);
 
-        $response = $this->actingAsRole()->getJson('/chat-live/feed?after_id=' . $old->id);
+        $response = $this->actingAsUser()->getJson('/chat-live/feed?after_id=' . $old->id);
 
         $response->assertOk();
         $response->assertJsonPath('count', 1);
@@ -80,7 +78,7 @@ class ChatLiveFeatureTest extends TestCase
             'received_at' => now(),
         ]);
 
-        $response = $this->actingAsRole()->get('/chat-live?number=628111');
+        $response = $this->actingAsUser()->get('/chat-live?number=628111');
 
         $response->assertOk();
         $response->assertSee('628111111111');

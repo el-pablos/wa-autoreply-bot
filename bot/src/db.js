@@ -1,5 +1,4 @@
 import mysql from "mysql2/promise";
-import { createHash } from "node:crypto";
 import { config } from "./config.js";
 import { logger } from "./utils/logger.js";
 
@@ -374,95 +373,6 @@ export async function saveRateLimitViolation(input) {
     ],
   );
   return result.insertId;
-}
-
-/**
- * Verifikasi API key plaintext ke hash di DB.
- *
- * @param {string} apiKeyRaw
- * @returns {Promise<Object|null>}
- */
-export async function verifyApiKey(apiKeyRaw) {
-  const key = String(apiKeyRaw || "").trim();
-  if (!key) return null;
-
-  const db = getPool();
-  const keyHash = createHash("sha256").update(key, "utf8").digest("hex");
-  const [rows] = await db.execute(
-    `SELECT id, name, scopes, revoked_at
-     FROM api_keys
-     WHERE key_hash = ?
-       AND revoked_at IS NULL
-     LIMIT 1`,
-    [keyHash],
-  );
-  const row = rows.length > 0 ? rows[0] : null;
-  if (!row) return null;
-
-  await db.execute(
-    `UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    [row.id],
-  );
-  return row;
-}
-
-/**
- * Tambah/update allowlist entry dari API publik.
- *
- * @param {Object} input
- * @param {string} input.phoneNumber
- * @param {string|null} [input.label]
- * @param {boolean} [input.isActive]
- * @returns {Promise<boolean>}
- */
-export async function upsertAllowListEntry(input) {
-  const db = getPool();
-  await db.execute(
-    `INSERT INTO allowed_numbers (phone_number, label, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-     ON DUPLICATE KEY UPDATE
-       label = VALUES(label),
-       is_active = VALUES(is_active),
-       updated_at = CURRENT_TIMESTAMP`,
-    [input.phoneNumber, input.label ?? null, input.isActive === false ? 0 : 1],
-  );
-  return true;
-}
-
-/**
- * Ambil log pesan untuk endpoint publik.
- *
- * @param {Object} [opts]
- * @param {number} [opts.limit=50]
- * @param {number} [opts.offset=0]
- * @param {string} [opts.fromNumber]
- * @returns {Promise<Array<Object>>}
- */
-export async function getMessageLogs(opts = {}) {
-  const db = getPool();
-  const limit = Math.max(1, Math.min(500, Number(opts.limit) || 50));
-  const offset = Math.max(0, Number(opts.offset) || 0);
-
-  if (opts.fromNumber) {
-    const [rows] = await db.execute(
-      `SELECT id, from_number, message_text, message_type, is_allowed, replied, reply_text, group_id, received_at, response_time_ms
-       FROM message_logs
-       WHERE from_number = ?
-       ORDER BY id DESC
-       LIMIT ? OFFSET ?`,
-      [opts.fromNumber, limit, offset],
-    );
-    return rows;
-  }
-
-  const [rows] = await db.execute(
-    `SELECT id, from_number, message_text, message_type, is_allowed, replied, reply_text, group_id, received_at, response_time_ms
-     FROM message_logs
-     ORDER BY id DESC
-     LIMIT ? OFFSET ?`,
-    [limit, offset],
-  );
-  return rows;
 }
 
 /**

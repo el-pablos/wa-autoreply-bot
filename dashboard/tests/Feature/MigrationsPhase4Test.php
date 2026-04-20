@@ -17,19 +17,12 @@ class MigrationsPhase4Test extends TestCase
             'business_hour_schedules',
             'oof_schedules',
             'message_type_templates',
-            'knowledge_base',
-            'ai_conversation_history',
-            'webhook_endpoints',
-            'webhook_delivery_logs',
             'blacklist',
             'rate_limit_violations',
             'activity_logs',
-            'escalation_logs',
             'alert_channels',
             'alert_history',
             'analytics_daily_summary',
-            'backups',
-            'api_keys',
         ];
 
         foreach ($tables as $table) {
@@ -42,10 +35,6 @@ class MigrationsPhase4Test extends TestCase
 
     public function test_phase4_key_columns_are_available(): void
     {
-        $this->assertTrue(Schema::hasColumn('users', 'role'));
-        $this->assertTrue(Schema::hasColumn('users', 'totp_secret'));
-        $this->assertTrue(Schema::hasColumn('users', 'two_factor_enabled'));
-
         $this->assertTrue(Schema::hasColumn('allowed_numbers', 'template_id'));
         $this->assertTrue(Schema::hasColumn('allowed_numbers', 'reply_count_today'));
 

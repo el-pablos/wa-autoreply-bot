@@ -12,26 +12,24 @@ class TemplateFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsRole(string $role = 'owner')
+    private function actingAsUser()
     {
-        $user = User::factory()->create([
-            'role' => $role,
-        ]);
+        $user = User::factory()->create();
 
         return $this->actingAs($user);
     }
 
     public function test_templates_index_accessible(): void
     {
-        $response = $this->actingAsRole()->get('/templates');
+        $response = $this->actingAsUser()->get('/templates');
 
         $response->assertOk();
         $response->assertSee('Reply Template Library');
     }
 
-    public function test_owner_can_create_reply_template(): void
+    public function test_can_create_reply_template(): void
     {
-        $response = $this->actingAsRole('owner')->post('/templates/reply', [
+        $response = $this->actingAsUser()->post('/templates/reply', [
             'name' => 'Template Default Baru',
             'body' => 'Halo {{nama}}, ini template baru.',
             'is_default' => '1',
@@ -65,7 +63,7 @@ class TemplateFeatureTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->actingAsRole('owner')->post("/templates/reply/{$second->id}/default");
+        $response = $this->actingAsUser()->post("/templates/reply/{$second->id}/default");
         $response->assertRedirect('/templates');
 
         $this->assertTrue((bool) $second->fresh()?->is_default);
@@ -76,9 +74,9 @@ class TemplateFeatureTest extends TestCase
         ]);
     }
 
-    public function test_owner_can_upsert_message_type_template(): void
+    public function test_can_upsert_message_type_template(): void
     {
-        $response = $this->actingAsRole('owner')->post('/templates/type', [
+        $response = $this->actingAsUser()->post('/templates/type', [
             'message_type' => 'text',
             'body' => 'Balasan khusus text.',
             'is_active' => 'true',
@@ -97,7 +95,7 @@ class TemplateFeatureTest extends TestCase
         ]);
     }
 
-    public function test_owner_can_toggle_message_type_template_status(): void
+    public function test_can_toggle_message_type_template_status(): void
     {
         MessageTypeTemplate::query()->create([
             'message_type' => 'image',
@@ -105,7 +103,7 @@ class TemplateFeatureTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->actingAsRole('owner')->patch('/templates/type/image/toggle');
+        $response = $this->actingAsUser()->patch('/templates/type/image/toggle');
         $response->assertRedirect('/templates');
 
         $this->assertDatabaseHas('message_type_templates', [
@@ -118,29 +116,20 @@ class TemplateFeatureTest extends TestCase
         ]);
     }
 
-    public function test_viewer_cannot_mutate_templates(): void
+    public function test_name_must_be_unique_when_creating_template(): void
     {
-        $replyResponse = $this->actingAsRole('viewer')->post('/templates/reply', [
-            'name' => 'Tidak boleh',
-            'body' => 'Tidak boleh',
+        ReplyTemplate::query()->create([
+            'name' => 'Template Unik',
+            'body' => 'Body awal',
             'is_active' => '1',
         ]);
 
-        $replyResponse->assertForbidden();
-
-        $typeResponse = $this->actingAsRole('viewer')->post('/templates/type', [
-            'message_type' => 'text',
-            'body' => 'Tidak boleh',
-            'is_active' => 'true',
+        $response = $this->actingAsUser()->post('/templates/reply', [
+            'name' => 'Template Unik',
+            'body' => 'Body duplikat',
+            'is_active' => '1',
         ]);
 
-        $typeResponse->assertForbidden();
-
-        $this->assertDatabaseMissing('reply_templates', [
-            'name' => 'Tidak boleh',
-        ]);
-        $this->assertDatabaseMissing('activity_logs', [
-            'action' => 'templates.reply.created',
-        ]);
+        $response->assertSessionHasErrors('name');
     }
 }

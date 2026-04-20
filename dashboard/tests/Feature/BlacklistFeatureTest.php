@@ -11,26 +11,24 @@ class BlacklistFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsRole(string $role = 'owner')
+    private function actingAsUser()
     {
-        $user = User::factory()->create([
-            'role' => $role,
-        ]);
+        $user = User::factory()->create();
 
         return $this->actingAs($user);
     }
 
     public function test_blacklist_index_accessible(): void
     {
-        $response = $this->actingAsRole()->get('/blacklist');
+        $response = $this->actingAsUser()->get('/blacklist');
 
         $response->assertOk();
         $response->assertSee('Blacklist Numbers');
     }
 
-    public function test_owner_can_store_blacklist_number_and_normalize_phone(): void
+    public function test_can_store_blacklist_number_and_normalize_phone(): void
     {
-        $response = $this->actingAsRole('owner')->post('/blacklist', [
+        $response = $this->actingAsUser()->post('/blacklist', [
             'phone_number' => '0812-3456-7890',
             'reason' => 'Spam berulang',
             'is_active' => 'true',
@@ -49,7 +47,7 @@ class BlacklistFeatureTest extends TestCase
         ]);
     }
 
-    public function test_owner_can_toggle_blacklist_status(): void
+    public function test_can_toggle_blacklist_status(): void
     {
         $entry = Blacklist::query()->create([
             'phone_number' => '628111111111',
@@ -59,23 +57,19 @@ class BlacklistFeatureTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->actingAsRole('owner')->patch("/blacklist/{$entry->id}/toggle");
+        $response = $this->actingAsUser()->patch("/blacklist/{$entry->id}/toggle");
 
         $response->assertRedirect('/blacklist');
         $this->assertFalse((bool) $entry->fresh()?->is_active);
     }
 
-    public function test_viewer_cannot_mutate_blacklist(): void
+    public function test_invalid_phone_rejected_for_blacklist(): void
     {
-        $response = $this->actingAsRole('viewer')->post('/blacklist', [
-            'phone_number' => '628999999999',
+        $response = $this->actingAsUser()->post('/blacklist', [
+            'phone_number' => 'abc',
             'reason' => 'blocked',
         ]);
 
-        $response->assertForbidden();
-
-        $this->assertDatabaseMissing('blacklist', [
-            'phone_number' => '628999999999',
-        ]);
+        $response->assertSessionHasErrors('phone_number');
     }
 }

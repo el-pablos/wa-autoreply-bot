@@ -4,8 +4,8 @@
  * Setiap entry disimpan bersama `expiresAt`. Saat `get()`/`has()` dipanggil,
  * entry yang sudah expired otomatis dihapus secara lazy (no background timer).
  *
- * Dipakai oleh: blacklist cache, FAQ knowledge base cache, type template cache,
- * semantic cache, dan lookup ringan lain yang butuh TTL cepat.
+ * Dipakai oleh: blacklist cache, type template cache, dan lookup ringan lain
+ * yang butuh TTL cepat.
  */
 export class TtlCache {
   /**

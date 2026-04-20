@@ -11,11 +11,9 @@ class AuditFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsRole(string $role = 'owner')
+    private function actingAsUser()
     {
-        $user = User::factory()->create([
-            'role' => $role,
-        ]);
+        $user = User::factory()->create();
 
         return $this->actingAs($user);
     }
@@ -33,7 +31,7 @@ class AuditFeatureTest extends TestCase
             'user_agent' => 'phpunit',
         ]);
 
-        $response = $this->actingAsRole()->get('/audit');
+        $response = $this->actingAsUser()->get('/audit');
 
         $response->assertOk();
         $response->assertSee('Audit Events');
@@ -64,7 +62,7 @@ class AuditFeatureTest extends TestCase
             'user_agent' => null,
         ]);
 
-        $response = $this->actingAsRole()->get('/audit?actor=alpha');
+        $response = $this->actingAsUser()->get('/audit?actor=alpha');
 
         $response->assertOk();
         $response->assertSee('event.alpha');

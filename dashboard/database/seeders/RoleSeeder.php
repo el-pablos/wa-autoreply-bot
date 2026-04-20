@@ -19,8 +19,6 @@ class RoleSeeder extends Seeder
             [
                 'name' => $ownerName,
                 'password' => Hash::make($ownerPassword),
-                'role' => 'owner',
-                'two_factor_enabled' => false,
             ]
         );
     }

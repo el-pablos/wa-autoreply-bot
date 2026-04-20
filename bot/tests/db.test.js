@@ -1,22 +1,19 @@
-/**
- * Test db.js dengan mock mysql2
- */
-
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
-// Mock mysql2/promise sebelum import modul
 const mockExecute = jest.fn();
-const mockPool    = { execute: mockExecute };
+const mockPool = { execute: mockExecute };
+const mockCreatePool = jest.fn(() => mockPool);
 
 jest.unstable_mockModule('mysql2/promise', () => ({
-  default: { createPool: jest.fn(() => mockPool) },
-  createPool: jest.fn(() => mockPool),
+  default: { createPool: mockCreatePool },
+  createPool: mockCreatePool,
 }));
 
 const {
   getSetting,
   isAllowedNumber,
   saveMessageLog,
+  updateBotStatus,
   upsertApprovedSession,
   isInApprovedSession,
   refreshApprovedSession,
@@ -29,105 +26,109 @@ const {
   getMessageTypeTemplates,
   getBlacklistEntry,
   saveRateLimitViolation,
-  getKnowledgeBaseEntries,
-  incrementKnowledgeMatch,
-  saveAiConversationTurn,
-  getRecentConversationHistory,
-  pruneConversationHistory,
-  getActiveWebhookEndpoints,
-  createWebhookDeliveryLog,
-  updateWebhookDeliveryLog,
-  touchWebhookEndpoint,
-  saveEscalationLog,
-  verifyApiKey,
-  upsertAllowListEntry,
-  getMessageLogs,
   getSettingsByKeys,
 } = await import('../src/db.js');
 
-describe('db — getSetting', () => {
-  beforeEach(() => mockExecute.mockReset());
+describe('db - basic lookups', () => {
+  beforeEach(() => {
+    mockExecute.mockReset();
+  });
 
-  test('return value jika key ditemukan', async () => {
-    mockExecute.mockResolvedValue([[{ value: 'true' }]]);
-    const result = await getSetting('auto_reply_enabled');
-    expect(result).toBe('true');
+  test('getSetting return value when key exists', async () => {
+    mockExecute.mockResolvedValueOnce([[{ value: 'true' }]]);
+
+    await expect(getSetting('auto_reply_enabled')).resolves.toBe('true');
     expect(mockExecute).toHaveBeenCalledWith(
-      expect.stringContaining('bot_settings'),
-      ['auto_reply_enabled']
+      expect.stringContaining('FROM bot_settings'),
+      ['auto_reply_enabled'],
     );
   });
 
-  test('return null jika key tidak ditemukan', async () => {
-    mockExecute.mockResolvedValue([[]]);
-    const result = await getSetting('key_tidak_ada');
-    expect(result).toBeNull();
+  test('getSetting return null when key missing', async () => {
+    mockExecute.mockResolvedValueOnce([[]]);
+
+    await expect(getSetting('missing_key')).resolves.toBeNull();
+  });
+
+  test('isAllowedNumber return true/false based on query result', async () => {
+    mockExecute.mockResolvedValueOnce([[{ id: 1 }]]);
+    await expect(isAllowedNumber('628111111111')).resolves.toBe(true);
+
+    mockExecute.mockResolvedValueOnce([[]]);
+    await expect(isAllowedNumber('628999999999')).resolves.toBe(false);
   });
 });
 
-describe('db — isAllowedNumber', () => {
-  beforeEach(() => mockExecute.mockReset());
-
-  test('return true jika nomor ada di allow-list', async () => {
-    mockExecute.mockResolvedValue([[{ id: 1 }]]);
-    const result = await isAllowedNumber('628123456789');
-    expect(result).toBe(true);
+describe('db - message logs and settings', () => {
+  beforeEach(() => {
+    mockExecute.mockReset();
   });
 
-  test('return false jika nomor tidak ada di allow-list', async () => {
-    mockExecute.mockResolvedValue([[]]);
-    const result = await isAllowedNumber('628000000000');
-    expect(result).toBe(false);
-  });
-});
+  test('saveMessageLog return insert id and map booleans to tinyint', async () => {
+    mockExecute.mockResolvedValueOnce([{ insertId: 42 }]);
 
-describe('db — saveMessageLog', () => {
-  beforeEach(() => mockExecute.mockReset());
-
-  test('return insertId setelah insert berhasil', async () => {
-    mockExecute.mockResolvedValue([{ insertId: 42 }]);
     const id = await saveMessageLog({
-      fromNumber:  '628111111111',
-      messageText: 'Halo',
+      fromNumber: '628111111111',
+      messageText: 'halo',
       messageType: 'text',
-      isAllowed:   true,
-      replied:     true,
-      replyText:   'Balasan',
-      groupId:     null,
+      isAllowed: false,
+      replied: true,
+      replyText: 'balasan',
+      groupId: null,
+      responseTimeMs: -33,
     });
+
     expect(id).toBe(42);
+    const values = mockExecute.mock.calls[0][1];
+    expect(values[3]).toBe(0);
+    expect(values[4]).toBe(1);
+    expect(values[7]).toBe(0);
   });
 
-  test('isAllowed false dikirim sebagai 0', async () => {
-    mockExecute.mockResolvedValue([{ insertId: 1 }]);
-    await saveMessageLog({
-      fromNumber:  '628222222222',
-      messageText: 'Test',
-      messageType: 'text',
-      isAllowed:   false,
-      replied:     false,
-    });
-    const callArgs = mockExecute.mock.calls[0][1];
-    expect(callArgs[3]).toBe(0); // isAllowed
-    expect(callArgs[4]).toBe(0); // replied
+  test('updateBotStatus updates bot_status key', async () => {
+    mockExecute.mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    await updateBotStatus('online');
+
+    expect(mockExecute).toHaveBeenCalledWith(
+      expect.stringContaining("WHERE `key` = 'bot_status'"),
+      ['online'],
+    );
+  });
+
+  test('getSettingsByKeys return empty array for empty input', async () => {
+    await expect(getSettingsByKeys([])).resolves.toEqual([]);
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  test('getSettingsByKeys fetch values for provided keys', async () => {
+    mockExecute.mockResolvedValueOnce([[{ key: 'auto_reply_enabled', value: 'true' }]]);
+
+    await expect(getSettingsByKeys(['auto_reply_enabled'])).resolves.toEqual([
+      { key: 'auto_reply_enabled', value: 'true' },
+    ]);
+
+    expect(mockExecute).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE `key` IN (?)'),
+      ['auto_reply_enabled'],
+    );
   });
 });
 
-describe('db — approved sessions', () => {
-  beforeEach(() => mockExecute.mockReset());
+describe('db - approved session lifecycle', () => {
+  beforeEach(() => {
+    mockExecute.mockReset();
+  });
 
-  test('upsertApprovedSession insert bila data belum ada', async () => {
+  test('upsertApprovedSession creates new session when absent', async () => {
     mockExecute
       .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([{ insertId: 1 }]);
 
-    const result = await upsertApprovedSession('628111111111', '628999999999', 24);
+    const result = await upsertApprovedSession('628111111111', '628900000000', 24);
+
     expect(result.action).toBe('created');
     expect(result.expiresAt).toBeInstanceOf(Date);
-    expect(mockExecute).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT id FROM approved_sessions'),
-      ['628111111111']
-    );
     expect(mockExecute).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO approved_sessions'),
       [
@@ -135,192 +136,119 @@ describe('db — approved sessions', () => {
         expect.any(Date),
         expect.any(Date),
         expect.any(Date),
-        '628999999999',
-      ]
+        '628900000000',
+      ],
     );
   });
 
-  test('upsertApprovedSession refresh bila data aktif sudah ada', async () => {
+  test('upsertApprovedSession refreshes active session when exists', async () => {
     mockExecute
-      .mockResolvedValueOnce([[{ id: 5 }]])
+      .mockResolvedValueOnce([[{ id: 99 }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
-    const result = await upsertApprovedSession('628111111111', '628999999999', 24);
+    const result = await upsertApprovedSession('628111111111', '628900000000', 12);
+
     expect(result.action).toBe('refreshed');
     expect(result.expiresAt).toBeInstanceOf(Date);
     expect(mockExecute).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE approved_sessions'),
-      [expect.any(Date), expect.any(Date), '628999999999', '628111111111']
+      [expect.any(Date), expect.any(Date), '628900000000', '628111111111'],
     );
   });
 
-  test('isInApprovedSession return true jika sesi aktif', async () => {
-    mockExecute.mockResolvedValueOnce([[{ id: 99 }]]);
+  test('isInApprovedSession returns true when active row exists', async () => {
+    mockExecute.mockResolvedValueOnce([[{ id: 9 }]]);
+
     await expect(isInApprovedSession('628111111111')).resolves.toBe(true);
   });
 
-  test('refreshApprovedSession return false jika tidak ada sesi aktif', async () => {
-    mockExecute.mockResolvedValueOnce([{ affectedRows: 0 }]);
-    await expect(refreshApprovedSession('628111111111', 24)).resolves.toBe(false);
-  });
-
-  test('revokeApprovedSession return true jika berhasil revoke', async () => {
+  test('refreshApprovedSession and revokeApprovedSession return affected status', async () => {
     mockExecute.mockResolvedValueOnce([{ affectedRows: 1 }]);
-    await expect(revokeApprovedSession('628111111111')).resolves.toBe(true);
+    await expect(refreshApprovedSession('628111111111', 24)).resolves.toBe(true);
+
+    mockExecute.mockResolvedValueOnce([{ affectedRows: 0 }]);
+    await expect(revokeApprovedSession('628111111111')).resolves.toBe(false);
   });
 
-  test('expireStaleSessions return jumlah sesi kadaluarsa', async () => {
+  test('expireStaleSessions returns number of expired rows', async () => {
     mockExecute.mockResolvedValueOnce([{ affectedRows: 3 }]);
+
     await expect(expireStaleSessions()).resolves.toBe(3);
   });
 
-  test('getActiveApprovedSessions return list sesi aktif', async () => {
+  test('getActiveApprovedSessions returns query rows', async () => {
     mockExecute.mockResolvedValueOnce([[{ id: 1, phone_number: '6281' }]]);
+
     await expect(getActiveApprovedSessions()).resolves.toEqual([{ id: 1, phone_number: '6281' }]);
   });
 });
 
-describe('db — template/schedule helpers', () => {
-  beforeEach(() => mockExecute.mockReset());
+describe('db - template, schedule, and guard helpers', () => {
+  beforeEach(() => {
+    mockExecute.mockReset();
+  });
 
-  test('getActiveTemplate return linked template jika ada', async () => {
-    mockExecute
-      .mockResolvedValueOnce([[{ id: 1, body: 'template linked' }]])
-      .mockResolvedValueOnce([[{ id: 9, body: 'template default' }]]);
+  test('getActiveTemplate returns linked template first', async () => {
+    mockExecute.mockResolvedValueOnce([[{ id: 1, body: 'linked template' }]]);
 
-    await expect(getActiveTemplate('6281')).resolves.toEqual({ id: 1, body: 'template linked' });
+    await expect(getActiveTemplate('6281')).resolves.toEqual({ id: 1, body: 'linked template' });
     expect(mockExecute).toHaveBeenCalledTimes(1);
   });
 
-  test('getActiveTemplate fallback ke default jika linked tidak ada', async () => {
+  test('getActiveTemplate falls back to default template when no linked template', async () => {
     mockExecute
       .mockResolvedValueOnce([[]])
-      .mockResolvedValueOnce([[{ id: 9, body: 'template default' }]]);
+      .mockResolvedValueOnce([[{ id: 2, body: 'default template' }]]);
 
-    await expect(getActiveTemplate('6281')).resolves.toEqual({ id: 9, body: 'template default' });
+    await expect(getActiveTemplate('6281')).resolves.toEqual({ id: 2, body: 'default template' });
     expect(mockExecute).toHaveBeenCalledTimes(2);
   });
 
-  test('getBusinessHourSchedules/getActiveOofSchedules/getMessageTypeTemplates', async () => {
+  test('getActiveTemplate returns null when no linked and no default template', async () => {
+    mockExecute
+      .mockResolvedValueOnce([[]])
+      .mockResolvedValueOnce([[]]);
+
+    await expect(getActiveTemplate('6281')).resolves.toBeNull();
+  });
+
+  test('getBusinessHourSchedules/getActiveOofSchedules/getMessageTypeTemplates return rows', async () => {
     mockExecute
       .mockResolvedValueOnce([[{ weekday: 1 }]])
-      .mockResolvedValueOnce([[{ id: 2 }]])
-      .mockResolvedValueOnce([[{ message_type: 'text' }]]);
+      .mockResolvedValueOnce([[{ id: 10 }]])
+      .mockResolvedValueOnce([[{ message_type: 'text', body: 'x' }]]);
 
     await expect(getBusinessHourSchedules()).resolves.toEqual([{ weekday: 1 }]);
-    await expect(getActiveOofSchedules('2026-04-20')).resolves.toEqual([{ id: 2 }]);
-    await expect(getMessageTypeTemplates()).resolves.toEqual([{ message_type: 'text' }]);
+    await expect(getActiveOofSchedules('2026-04-20')).resolves.toEqual([{ id: 10 }]);
+    await expect(getMessageTypeTemplates()).resolves.toEqual([{ message_type: 'text', body: 'x' }]);
   });
-});
 
-describe('db — anti-spam/kb/history helpers', () => {
-  beforeEach(() => mockExecute.mockReset());
+  test('getActiveOofSchedules throws for invalid date input', async () => {
+    await expect(getActiveOofSchedules('not-a-date')).rejects.toThrow('Tanggal tidak valid');
+  });
 
-  test('getBlacklistEntry return null jika tidak ada', async () => {
+  test('getBlacklistEntry returns row or null', async () => {
+    mockExecute.mockResolvedValueOnce([[{ id: 5, phone_number: '6281' }]]);
+    await expect(getBlacklistEntry('6281')).resolves.toEqual({ id: 5, phone_number: '6281' });
+
     mockExecute.mockResolvedValueOnce([[]]);
-    await expect(getBlacklistEntry('6281')).resolves.toBeNull();
+    await expect(getBlacklistEntry('6282')).resolves.toBeNull();
   });
 
-  test('saveRateLimitViolation return insertId', async () => {
-    mockExecute.mockResolvedValueOnce([{ insertId: 77 }]);
-    await expect(
-      saveRateLimitViolation({ phoneNumber: '6281', windowStart: new Date(), messageCount: 9 })
-    ).resolves.toBe(77);
-  });
-
-  test('knowledge base read + increment', async () => {
-    mockExecute
-      .mockResolvedValueOnce([[{ id: 1, answer: 'ok' }]])
-      .mockResolvedValueOnce([{ affectedRows: 1 }]);
-
-    await expect(getKnowledgeBaseEntries()).resolves.toEqual([{ id: 1, answer: 'ok' }]);
-    await expect(incrementKnowledgeMatch(1)).resolves.toBe(true);
-  });
-
-  test('AI history helpers', async () => {
-    mockExecute
-      .mockResolvedValueOnce([{ insertId: 11 }])
-      .mockResolvedValueOnce([[{ id: 1, content: 'halo' }]])
-      .mockResolvedValueOnce([{ affectedRows: 4 }]);
+  test('saveRateLimitViolation returns insert id', async () => {
+    mockExecute.mockResolvedValueOnce([{ insertId: 71 }]);
 
     await expect(
-      saveAiConversationTurn({ phoneNumber: '6281', role: 'user', content: 'halo', tokens: 12 })
-    ).resolves.toBe(11);
-    await expect(getRecentConversationHistory('6281', { limit: 5 })).resolves.toEqual([
-      { id: 1, content: 'halo' },
-    ]);
-    await expect(pruneConversationHistory(new Date())).resolves.toBe(4);
-  });
-});
+      saveRateLimitViolation({
+        phoneNumber: '6281',
+        windowStart: new Date('2026-04-20T00:00:00.000Z'),
+        messageCount: 9,
+      }),
+    ).resolves.toBe(71);
 
-describe('db — webhook/api helpers', () => {
-  beforeEach(() => mockExecute.mockReset());
-
-  test('getActiveWebhookEndpoints by event', async () => {
-    mockExecute.mockResolvedValueOnce([[{ id: 1, url: 'https://hook' }]]);
-    await expect(getActiveWebhookEndpoints('reply_sent')).resolves.toEqual([
-      { id: 1, url: 'https://hook' },
-    ]);
     expect(mockExecute).toHaveBeenCalledWith(
-      expect.stringContaining('JSON_CONTAINS'),
-      ['reply_sent']
+      expect.stringContaining('INSERT INTO rate_limit_violations'),
+      ['6281', expect.any(Date), 9],
     );
-  });
-
-  test('webhook log create/update/touch endpoint', async () => {
-    mockExecute
-      .mockResolvedValueOnce([{ insertId: 91 }])
-      .mockResolvedValueOnce([{ affectedRows: 1 }])
-      .mockResolvedValueOnce([{ affectedRows: 1 }]);
-
-    await expect(
-      createWebhookDeliveryLog({ endpointId: 1, event: 'x', payload: { a: 1 } })
-    ).resolves.toBe(91);
-    await expect(
-      updateWebhookDeliveryLog(91, { status: 'success', responseCode: 200, attempts: 1 })
-    ).resolves.toBe(true);
-    await expect(touchWebhookEndpoint(1)).resolves.toBe(true);
-  });
-
-  test('saveEscalationLog return insertId', async () => {
-    mockExecute.mockResolvedValueOnce([{ insertId: 12 }]);
-    await expect(
-      saveEscalationLog({
-        fromNumber: '6281',
-        triggerReason: 'komplain',
-        escalatedTo: '6289',
-        messageSnippet: 'tolong',
-      })
-    ).resolves.toBe(12);
-  });
-
-  test('verifyApiKey return row + update last_used_at', async () => {
-    mockExecute
-      .mockResolvedValueOnce([[{ id: 1, name: 'integration', scopes: null }]])
-      .mockResolvedValueOnce([{ affectedRows: 1 }]);
-
-    const row = await verifyApiKey('plain-key');
-    expect(row).toEqual({ id: 1, name: 'integration', scopes: null });
-    expect(mockExecute).toHaveBeenCalledTimes(2);
-
-    const hashArg = mockExecute.mock.calls[0][1][0];
-    expect(hashArg).toMatch(/^[a-f0-9]{64}$/);
-  });
-
-  test('upsertAllowListEntry, getMessageLogs, getSettingsByKeys', async () => {
-    mockExecute
-      .mockResolvedValueOnce([{ affectedRows: 1 }])
-      .mockResolvedValueOnce([[{ id: 1 }]])
-      .mockResolvedValueOnce([[{ key: 'auto_reply_enabled', value: 'true' }]]);
-
-    await expect(
-      upsertAllowListEntry({ phoneNumber: '6281', label: 'VIP', isActive: true })
-    ).resolves.toBe(true);
-    await expect(getMessageLogs({ fromNumber: '6281', limit: 10, offset: 0 })).resolves.toEqual([
-      { id: 1 },
-    ]);
-    await expect(getSettingsByKeys(['auto_reply_enabled'])).resolves.toEqual([
-      { key: 'auto_reply_enabled', value: 'true' },
-    ]);
   });
 });

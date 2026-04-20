@@ -34,13 +34,12 @@ class AlertController extends Controller
     public function storeChannel(Request $request)
     {
         $data = $request->validate([
-            'type' => ['required', 'in:wa,email'],
-            'target' => ['required', 'string', 'max:255'],
+            'target' => ['required', 'email:rfc', 'max:255'],
             'is_active' => ['nullable', 'in:true,false'],
         ]);
 
         $channel = AlertChannel::query()->create([
-            'type' => $data['type'],
+            'type' => 'email',
             'target' => $data['target'],
             'is_active' => $request->boolean('is_active', true),
         ]);
@@ -59,15 +58,14 @@ class AlertController extends Controller
     public function updateChannel(Request $request, AlertChannel $channel)
     {
         $data = $request->validate([
-            'type' => ['required', 'in:wa,email'],
-            'target' => ['required', 'string', 'max:255'],
+            'target' => ['required', 'email:rfc', 'max:255'],
             'is_active' => ['nullable', 'in:true,false'],
         ]);
 
         $old = $channel->only(['type', 'target', 'is_active']);
 
         $channel->update([
-            'type' => $data['type'],
+            'type' => 'email',
             'target' => $data['target'],
             'is_active' => $request->boolean('is_active', true),
         ]);
@@ -125,7 +123,7 @@ class AlertController extends Controller
         $history = AlertHistory::query()->create([
             'channel_id' => $channel->id,
             'severity' => 'info',
-            'message' => 'Test alert dari dashboard pada ' . now()->format('Y-m-d H:i:s'),
+            'message' => 'Test laporan email dari dashboard pada ' . now()->format('Y-m-d H:i:s'),
             'delivered_at' => now(),
             'success' => true,
         ]);

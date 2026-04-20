@@ -11,11 +11,9 @@ class ApprovedSessionFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsRole(string $role = 'owner')
+    private function actingAsUser()
     {
-        $user = User::factory()->create([
-            'role' => $role,
-        ]);
+        $user = User::factory()->create();
 
         return $this->actingAs($user);
     }
@@ -47,7 +45,7 @@ class ApprovedSessionFeatureTest extends TestCase
             'approved_by' => 'admin',
         ]);
 
-        $response = $this->actingAsRole()->get('/approved-sessions');
+        $response = $this->actingAsUser()->get('/approved-sessions');
 
         $response->assertOk();
         $response->assertSee('Sesi Aktif');
@@ -67,7 +65,7 @@ class ApprovedSessionFeatureTest extends TestCase
             'approved_by' => 'admin',
         ]);
 
-        $response = $this->actingAsRole()->post("/approved-sessions/{$session->id}/revoke");
+        $response = $this->actingAsUser()->post("/approved-sessions/{$session->id}/revoke");
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
@@ -90,14 +88,14 @@ class ApprovedSessionFeatureTest extends TestCase
             'approved_by' => 'admin',
         ]);
 
-        $response = $this->actingAsRole()->post("/approved-sessions/{$session->id}/revoke");
+        $response = $this->actingAsUser()->post("/approved-sessions/{$session->id}/revoke");
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
         $this->assertNull($session->fresh()->revoked_at);
     }
 
-    public function test_viewer_cannot_revoke_session(): void
+    public function test_can_revoke_existing_active_session(): void
     {
         $session = ApprovedSession::create([
             'phone_number' => '628111100005',
@@ -108,10 +106,10 @@ class ApprovedSessionFeatureTest extends TestCase
             'approved_by' => 'admin',
         ]);
 
-        $response = $this->actingAsRole('viewer')->post("/approved-sessions/{$session->id}/revoke");
+        $response = $this->actingAsUser()->post("/approved-sessions/{$session->id}/revoke");
 
-        $response->assertForbidden();
-        $this->assertTrue((bool) $session->fresh()?->is_active);
-        $this->assertDatabaseMissing('activity_logs', ['action' => 'approved_session.revoked']);
+        $response->assertRedirect();
+        $this->assertFalse((bool) $session->fresh()?->is_active);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'approved_session.revoked']);
     }
 }

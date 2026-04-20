@@ -29,7 +29,6 @@ class AuthTest extends TestCase
         $user = User::factory()->create([
             'email' => 'owner@local.test',
             'password' => Hash::make('testpassword123'),
-            'role' => 'owner',
         ]);
 
         $response = $this->post('/login', [
@@ -50,7 +49,6 @@ class AuthTest extends TestCase
         User::factory()->create([
             'email' => 'owner@local.test',
             'password' => Hash::make('testpassword123'),
-            'role' => 'owner',
         ]);
 
         $response = $this->post('/login', [
@@ -68,9 +66,7 @@ class AuthTest extends TestCase
 
     public function test_logout_clears_session(): void
     {
-        $user = User::factory()->create([
-            'role' => 'owner',
-        ]);
+        $user = User::factory()->create();
         $this->actingAs($user);
 
         $response = $this->post('/logout');

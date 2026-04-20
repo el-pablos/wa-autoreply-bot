@@ -11,18 +11,16 @@ class AnalyticsFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsRole(string $role = 'owner')
+    private function actingAsUser()
     {
-        $user = User::factory()->create([
-            'role' => $role,
-        ]);
+        $user = User::factory()->create();
 
         return $this->actingAs($user);
     }
 
     public function test_analytics_index_accessible(): void
     {
-        $response = $this->actingAsRole()->get('/analytics');
+        $response = $this->actingAsUser()->get('/analytics');
 
         $response->assertOk();
         $response->assertSeeText('Traffic');
@@ -63,16 +61,16 @@ class AnalyticsFeatureTest extends TestCase
             'response_time_ms' => 900,
         ]);
 
-        $response = $this->actingAsRole()->get('/analytics?days=7');
+        $response = $this->actingAsUser()->get('/analytics?days=7');
 
         $response->assertOk();
         $response->assertSee('Most Active Senders');
         $response->assertSee('628111111111');
     }
 
-    public function test_viewer_can_access_analytics_page(): void
+    public function test_second_operator_login_can_access_analytics_page(): void
     {
-        $response = $this->actingAsRole('viewer')->get('/analytics');
+        $response = $this->actingAsUser()->get('/analytics');
 
         $response->assertOk();
     }

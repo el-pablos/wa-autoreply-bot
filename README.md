@@ -234,8 +234,8 @@ flowchart TD
 - ✅ Filter & search allow-list
 - ✅ Log viewer dengan filter lengkap (nomor, status reply, tanggal)
 - ✅ Halaman pengaturan (ubah pesan reply, delay, toggle auto-reply)
+- ✅ Alert report langsung ke Gmail via EmailJS
 - ✅ Mobile-First responsive design
-- ✅ Dark mode by default
 
 ### 🔧 DevOps
 - ✅ Docker Compose untuk development dan production
@@ -243,6 +243,15 @@ flowchart TD
 - ✅ GitHub Actions CI/CD
 - ✅ Auto-release dengan semantic versioning
 - ✅ SSL otomatis dengan Certbot
+
+### ⛔ Scope yang Sengaja Dihapus
+- ❌ 2FA / TOTP
+- ❌ Multi-user RBAC (owner/admin/viewer)
+- ❌ AI Smart Reply
+- ❌ Knowledge Base / FAQ matcher
+- ❌ Webhook outbound + API key + public API endpoint
+- ❌ Escalation otomatis
+- ❌ Backup management di aplikasi
 - ✅ Cloudflare DNS management
 
 ---

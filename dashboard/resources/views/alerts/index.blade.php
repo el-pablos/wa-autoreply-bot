@@ -29,21 +29,16 @@
     <form action="{{ route('alerts.channels.store') }}" method="POST" class="space-y-4 border border-[var(--color-rule)] rounded-md p-4 bg-[var(--color-card-muted)]">
       @csrf
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <x-ui.select
-          name="type"
-          label="Type"
-          :options="['email' => 'Email (Gmail)']"
-          :value="old('type', 'email')"
-          :error="$errors->first('type')"
-        />
+      <input type="hidden" name="type" value="email">
 
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <x-ui.input
           name="target"
-          label="Target"
+          type="email"
+          label="Email Gmail"
           :value="old('target')"
           :error="$errors->first('target')"
-          placeholder="6281... atau email@domain.com"
+          placeholder="owner@gmail.com"
           required
         />
       </div>
@@ -60,7 +55,7 @@
       @if ($channels->isEmpty())
         <x-ui.empty
           title="Belum ada channel"
-          description="Tambahkan channel WA/email supaya alert operasional bisa dikirim otomatis."
+          description="Tambahkan email Gmail supaya laporan operasional bisa dikirim otomatis."
           icon="lucide-bell"
         />
       @else
@@ -69,28 +64,21 @@
             <form action="{{ route('alerts.channels.update', $channel) }}" method="POST" class="space-y-3">
               @csrf
               @method('PUT')
+              <input type="hidden" name="type" value="email">
 
               <div class="flex flex-wrap items-center gap-2">
                 <x-ui.badge :variant="$channel->is_active ? 'verified' : 'pending'" size="sm" :dot="$channel->is_active">{{ $channel->is_active ? 'ACTIVE' : 'INACTIVE' }}</x-ui.badge>
-                <x-ui.badge variant="muted" size="sm">{{ strtoupper($channel->type) }}</x-ui.badge>
+                <x-ui.badge variant="muted" size="sm">EMAIL (GMAIL)</x-ui.badge>
                 <span class="font-mono text-xs text-[var(--color-ink-muted)]">last: {{ $channel->last_alert_at?->format('d/m/Y H:i:s') ?? '-' }}</span>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <x-ui.select
-                  name="type"
-                  label="Type"
-                  :options="[
-                    'wa' => 'WhatsApp',
-                    'email' => 'Email',
-                  ]"
-                  :value="$channel->type"
-                />
-
                 <x-ui.input
                   name="target"
-                  label="Target"
+                  type="email"
+                  label="Email Gmail"
                   :value="$channel->target"
+                  placeholder="owner@gmail.com"
                   required
                 />
               </div>
@@ -141,6 +129,11 @@
 
     <div
       x-data="{
+        emailJsConfig: window.EMAILJS_CONFIG || {
+          serviceId: 'service_l0d0dy1',
+          templateId: 'template_f5yxmcs',
+          publicKey: 'VL37ccvDIDg0haxhm',
+        },
         toEmail: '',
         subject: 'WA Bot \u2014 Laporan Operasional ' + new Date().toLocaleDateString('id-ID'),
         notes: '',
@@ -162,6 +155,9 @@
                 'Accept': 'application/json',
               },
             });
+            if (!res.ok) {
+              throw new Error('Gagal ambil data laporan dari dashboard.');
+            }
             const data = await res.json();
             const recentLines = (data.recent_alerts || []).map(function(a) {
               return '[' + a.severity.toUpperCase() + '] ' + a.message + ' \u2014 ' + (a.success ? 'OK' : 'GAGAL');
@@ -189,15 +185,15 @@
             const body = bodyParts.join('\n');
 
             await emailjs.send(
-              'service_l0d0dy1',
-              'template_f5yxmcs',
+              this.emailJsConfig.serviceId,
+              this.emailJsConfig.templateId,
               {
                 to_email: this.toEmail,
                 subject: this.subject,
                 message: body,
                 from_name: 'WA Bot Dashboard',
               },
-              'VL37ccvDIDg0haxhm'
+              this.emailJsConfig.publicKey
             );
             this.status = 'success';
             this.statusMsg = 'Laporan berhasil dikirim ke ' + this.toEmail;
@@ -306,9 +302,16 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
+  const EMAILJS_CONFIG = {
+    serviceId: 'service_l0d0dy1',
+    templateId: 'template_f5yxmcs',
+    publicKey: 'VL37ccvDIDg0haxhm',
+  };
+  window.EMAILJS_CONFIG = EMAILJS_CONFIG;
+
   document.addEventListener('DOMContentLoaded', function () {
     if (typeof emailjs !== 'undefined') {
-      emailjs.init({ publicKey: 'VL37ccvDIDg0haxhm' });
+      emailjs.init({ publicKey: EMAILJS_CONFIG.publicKey });
     }
   });
 </script>

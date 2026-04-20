@@ -11,18 +11,16 @@ class SettingTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsRole(string $role = 'owner')
+    private function actingAsUser()
     {
-        $user = User::factory()->create([
-            'role' => $role,
-        ]);
+        $user = User::factory()->create();
 
         return $this->actingAs($user);
     }
 
     public function test_settings_page_accessible(): void
     {
-        $response = $this->actingAsRole()->get('/settings');
+        $response = $this->actingAsUser()->get('/settings');
         $response->assertStatus(200);
     }
 
@@ -33,7 +31,7 @@ class SettingTest extends TestCase
         BotSetting::create(['key' => 'auto_reply_enabled', 'value' => 'false']);
         BotSetting::create(['key' => 'ignore_groups',      'value' => 'false']);
 
-        $response = $this->actingAsRole()->post('/settings', [
+        $response = $this->actingAsUser()->post('/settings', [
             'reply_message'      => 'Pesan baru dari test',
             'reply_delay_ms'     => 2000,
             'auto_reply_enabled' => 'true',
@@ -49,23 +47,10 @@ class SettingTest extends TestCase
 
     public function test_empty_reply_message_rejected(): void
     {
-        $response = $this->actingAsRole()->post('/settings', [
+        $response = $this->actingAsUser()->post('/settings', [
             'reply_message'  => '',
             'reply_delay_ms' => 1000,
         ]);
         $response->assertSessionHasErrors('reply_message');
-    }
-
-    public function test_viewer_cannot_update_settings(): void
-    {
-        $response = $this->actingAsRole('viewer')->post('/settings', [
-            'reply_message' => 'Tidak boleh',
-            'reply_delay_ms' => 1200,
-            'auto_reply_enabled' => 'true',
-            'ignore_groups' => 'true',
-        ]);
-
-        $response->assertForbidden();
-        $this->assertDatabaseMissing('activity_logs', ['action' => 'settings.updated']);
     }
 }
