@@ -148,6 +148,12 @@
           x-model="form.reply_delay_ms"
           suffix="ms"
         />
+
+        <div class="flex justify-end pt-2">
+          <x-ui.button type="submit" variant="primary" icon="lucide-save" x-bind:disabled="saving">
+            Simpan Pengaturan
+          </x-ui.button>
+        </div>
       </section>
 
       <section x-show="active === 'schedule'" class="space-y-3" style="display: none;">
@@ -159,7 +165,7 @@
         <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman khusus untuk setup jadwal per hari + override OoF yang dipakai langsung oleh pipeline bot.</p>
-            <x-ui.button href="{{ route('business-hours.index') }}" variant="primary" size="sm" icon="lucide-clock-3">Buka Business Hours</x-ui.button>
+            <x-ui.button href="{{ route('business-hours.index') }}" variant="primary" size="sm" icon="lucide-clock-3" class="whitespace-nowrap shrink-0">Buka Business Hours</x-ui.button>
           </div>
         </x-ui.card>
       </section>
@@ -218,7 +224,7 @@
         <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman integrasi untuk create/update endpoint webhook, generate API key, dan revoke key.</p>
-            <x-ui.button href="{{ route('webhooks.index') }}" variant="primary" size="sm" icon="lucide-webhook">Buka Webhooks & API</x-ui.button>
+            <x-ui.button href="{{ route('webhooks.index') }}" variant="primary" size="sm" icon="lucide-webhook" class="whitespace-nowrap shrink-0">Buka Webhooks & API</x-ui.button>
           </div>
         </x-ui.card>
       </section>
@@ -247,7 +253,7 @@
         <x-ui.card padding="sm" class="bg-[var(--color-card-muted)] border-dashed">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p class="text-sm text-[var(--color-ink-muted)]">Buka halaman khusus 2FA untuk generate QR, aktivasi, dan disable dengan verifikasi ulang.</p>
-            <x-ui.button href="{{ route('settings.2fa.index') }}" variant="primary" size="sm" icon="lucide-shield-check">Buka Pengaturan 2FA</x-ui.button>
+            <x-ui.button href="{{ route('settings.2fa.index') }}" variant="primary" size="sm" icon="lucide-shield-check" class="whitespace-nowrap shrink-0">Buka Pengaturan 2FA</x-ui.button>
           </div>
         </x-ui.card>
       </section>

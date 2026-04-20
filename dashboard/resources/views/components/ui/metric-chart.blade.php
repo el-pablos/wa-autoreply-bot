@@ -29,12 +29,9 @@
     <div style="height: {{ $height }}px; position: relative;">
         <canvas
             id="{{ $id }}"
+            data-chart="{{ htmlspecialchars($payload, ENT_QUOTES, 'UTF-8') }}"
             x-data
-            x-init="
-                if (window.Chart) {
-                    new window.Chart($el.getContext('2d'), {!! $payload !!});
-                }
-            "
+            x-init="if (window.Chart) { new window.Chart($el.getContext('2d'), JSON.parse($el.dataset.chart)); }"
         ></canvas>
     </div>
 </div>
