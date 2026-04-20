@@ -3,6 +3,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import express from 'express';
@@ -122,11 +123,18 @@ async function connectToWhatsApp() {
 
   logger.info({ version }, 'Menggunakan Baileys versi');
 
+  const baileysLogger = logger.child(
+    { module: 'baileys' },
+    { level: config.bot.baileysLogLevel },
+  );
+
   const sock = makeWASocket({
     version,
-    auth:            state,
-    printQRInTerminal: true,
-    logger:          logger.child({ module: 'baileys' }),
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
+    },
+    logger:          baileysLogger,
     browser:         ['WA Bot', 'Chrome', '1.0.0'],
   });
   activeSock = sock;

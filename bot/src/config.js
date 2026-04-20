@@ -16,6 +16,7 @@ export const config = {
     port:        parseInt(process.env.BOT_PORT || '3001', 10),
     authDir:     './auth_info',
     logLevel:    process.env.LOG_LEVEL || 'info',
+    baileysLogLevel: process.env.BAILEYS_LOG_LEVEL || 'fatal',
     ownerNumber: process.env.OWNER_NUMBER || '',
   },
   env: process.env.NODE_ENV || 'development',
